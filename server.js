@@ -5,7 +5,7 @@ const { execFile } = require('child_process');
 const ytdlp = require('yt-dlp-exec');
 const fetch = require('node-fetch');
 
-
+const app = express();
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
 
@@ -88,4 +88,3 @@ app.post('/api/facebook', async (req, res) => {
 app.listen(PORT, () => {
     console.log(`Server running on port ${PORT}`);
 });
-

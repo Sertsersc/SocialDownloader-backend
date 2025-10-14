@@ -4,7 +4,16 @@
 
 import express from "express";
 import cors from "cors";
-import axios from "axios";
+import axios from 'axios'; // ESM modundaysan
+
+async function normalizeTikTokUrl(url) {
+  try {
+    const response = await axios.get(url, { maxRedirects: 5 });
+    return response.request?.res?.responseUrl || url;
+  } catch {
+    return url;
+  }
+}
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -208,14 +217,28 @@ async function normalizeTikTokUrl(url) {
   } catch {
     return url;
   }
-}// TikTok Downloaderapp.all('/api/tiktok', async (req, res) => {
+}import express from 'express';
+import axios from 'axios';
+
+const app = express();
+app.use(express.json());
+
+async function normalizeTikTokUrl(url) {
+  try {
+    const response = await axios.get(url, { maxRedirects: 5 });
+    return response.request?.res?.responseUrl || url;
+  } catch {
+    return url;
+  }
+}
+
+app.all('/api/tiktok', async (req, res) => {
   try {
     let url = req.method === 'GET' ? req.query.url : req.body.url;
     if (!url) return res.json({ success: false, message: 'URL gerekli' });
     if (!url.includes('tiktok.com')) return res.json({ success: false, message: 'Geçersiz TikTok URL' });
     if (!process.env.RAPIDAPI_KEY) return res.json({ success: false, message: 'TikTok için RapidAPI key gerekli' });
 
-    // normalize et
     url = await normalizeTikTokUrl(url);
     console.log('Normalized TikTok URL:', url);
 
@@ -241,7 +264,11 @@ async function normalizeTikTokUrl(url) {
     });
   }
 });
-// Facebook URL normalizasyon fonksiyonu
+
+const port = process.env.PORT || 3000;
+app.listen(port, () => {
+  console.log(`Server listening on ${port}`);
+});/ Facebook URL normalizasyon fonksiyonu
 function normalizeFacebookUrl(url) {
   try {
     // fb.watch kısa linklerini dönüştür

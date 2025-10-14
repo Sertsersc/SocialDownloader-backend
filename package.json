@@ -15,9 +15,12 @@
     "express": "^4.21.2",
     "instagram-scraping": "^1.0.17",
     "node-fetch": "^3.3.2",
-    "youtube-dl-exec": "^3.0.25"
+    "youtube-dl-exec": "^3.0.25",
+    "yt-dlp-exec": "^2.1.0"
+
   },
   "devDependencies": {
     "nodemon": "^3.0.1"
   }
 }
+

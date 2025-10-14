@@ -137,10 +137,27 @@ app.post('/api/youtube', async (req, res) => {
     }
 });
 
+function normalizeInstagramUrl(url) {
+  try {
+    // Eğer URL içinde ? varsa, sadece ana kısmı al
+    if (url.includes('?')) {
+      url = url.split('?')[0];
+    }
+
+    // Eğer sonu / ile bitmiyorsa ekle
+    if (!url.endsWith('/')) {
+      url += '/';
+    }
+
+    return url;
+  } catch (e) {
+    return url;
+  }
+}
 // Instagram Downloader (stories-videos4 API)
 app.all('/api/instagram', async (req, res) => {
   try {
-    const url = req.method === 'GET' ? req.query.url : req.body.url;
+    let url = req.method === 'GET' ? req.query.url : req.body.url;
 
     if (!url) {
       return res.json({ success: false, message: 'URL gerekli' });
@@ -152,10 +169,14 @@ app.all('/api/instagram', async (req, res) => {
       return res.json({ success: false, message: 'Instagram için RapidAPI key gerekli' });
     }
 
+    // normalize et
+    url = normalizeInstagramUrl(url);
+    console.log('Normalized Instagram URL:', url);
+
     const options = {
       method: 'GET',
       url: 'https://instagram-downloader-download-instagram-stories-videos4.p.rapidapi.com/convert',
-      params: { url }, // query parametre olarak gönderiyoruz
+      params: { url },
       headers: {
         'X-RapidAPI-Key': process.env.RAPIDAPI_KEY,
         'X-RapidAPI-Host': 'instagram-downloader-download-instagram-stories-videos4.p.rapidapi.com'
@@ -174,18 +195,28 @@ app.all('/api/instagram', async (req, res) => {
     });
   }
 });
-
 // Healthcheck
 app.get('/health', (req, res) => {
   res.json({ ok: true });
 });
-// TikTok Downloader
-app.all('/api/tiktok', async (req, res) => {
+async function normalizeTikTokUrl(url) {
   try {
-    const url = req.method === 'GET' ? req.query.url : req.body.url;
+    const response = await axios.get(url, { maxRedirects: 5 });
+    return response.request?.res?.responseUrl || url;
+  } catch {
+    return url;
+  }
+}
+// TikTok Downloaderapp.all('/api/tiktok', async (req, res) => {
+  try {
+    let url = req.method === 'GET' ? req.query.url : req.body.url;
     if (!url) return res.json({ success: false, message: 'URL gerekli' });
     if (!url.includes('tiktok.com')) return res.json({ success: false, message: 'Geçersiz TikTok URL' });
     if (!process.env.RAPIDAPI_KEY) return res.json({ success: false, message: 'TikTok için RapidAPI key gerekli' });
+
+    // normalize et
+    url = await normalizeTikTokUrl(url);
+    console.log('Normalized TikTok URL:', url);
 
     const options = {
       method: 'GET',
@@ -200,12 +231,15 @@ app.all('/api/tiktok', async (req, res) => {
 
     const response = await axios.request(options);
     return res.json({ success: true, data: response.data });
+
   } catch (error) {
     console.error('TikTok Error:', error.response?.data || error.message);
-    return res.json({ success: false, message: 'TikTok hata: ' + (error.response?.data?.message || error.message) });
+    return res.json({
+      success: false,
+      message: 'TikTok hata: ' + (error.response?.data?.message || error.message)
+    });
   }
 });
-
 // Facebook URL normalizasyon fonksiyonu
 function normalizeFacebookUrl(url) {
   try {

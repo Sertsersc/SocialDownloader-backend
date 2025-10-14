@@ -44,11 +44,6 @@ app.get("/health", (req, res) => {
     timestamp: new Date().toISOString()
   });
 });
-
-// Sunucuyu başlat
-app.listen(PORT, () => {
-  console.log(`✅ Server is running on port ${PORT}`);
-});
 // YouTube Downloader (RapidAPI ile)
 app.post('/api/youtube', async (req, res) => {
     try {

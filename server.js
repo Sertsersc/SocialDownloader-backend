@@ -4,7 +4,16 @@
 
 import express from "express";
 import cors from "cors";
-import axios from 'axios'; // ESM modundaysan
+import axios from 'axios';
+import {
+  normalizeTikTokUrl,
+  normalizeInstagramUrl,
+  normalizeFacebookUrl
+} from './normalize.js';
+
+const app = express();
+app.use(express.json());
+
 
 async function normalizeTikTokUrl(url) {
   try {
@@ -163,22 +172,14 @@ function normalizeInstagramUrl(url) {
     return url;
   }
 }
-// Instagram Downloader (stories-videos4 API)
+// Instagram Downloader
 app.all('/api/instagram', async (req, res) => {
   try {
     let url = req.method === 'GET' ? req.query.url : req.body.url;
+    if (!url) return res.json({ success: false, message: 'URL gerekli' });
+    if (!url.includes('instagram.com')) return res.json({ success: false, message: 'Geçersiz Instagram URL' });
+    if (!process.env.RAPIDAPI_KEY) return res.json({ success: false, message: 'Instagram için RapidAPI key gerekli' });
 
-    if (!url) {
-      return res.json({ success: false, message: 'URL gerekli' });
-    }
-    if (!url.includes('instagram.com')) {
-      return res.json({ success: false, message: 'Geçersiz Instagram URL' });
-    }
-    if (!process.env.RAPIDAPI_KEY) {
-      return res.json({ success: false, message: 'Instagram için RapidAPI key gerekli' });
-    }
-
-    // normalize et
     url = normalizeInstagramUrl(url);
     console.log('Normalized Instagram URL:', url);
 
@@ -204,32 +205,14 @@ app.all('/api/instagram', async (req, res) => {
     });
   }
 });
+
 // Healthcheck
 app.get('/health', (req, res) => {
   res.json({ ok: true });
 });
  // dosyanın en üstünde olmalı
 
-  try {
-    const response = await axios.get(url, { maxRedirects: 5 });
-    return response.request?.res?.responseUrl || url;
-  } catch {
-    return url;
-  }
-}import express from 'express';
-import axios from 'axios';
-
-const app = express();
-app.use(express.json());
-
-  try {
-    const response = await axios.get(url, { maxRedirects: 5 });
-    return response.request?.res?.responseUrl || url;
-  } catch {
-    return url;
-  }
-}
-
+  // TikTok Downloader
 app.all('/api/tiktok', async (req, res) => {
   try {
     let url = req.method === 'GET' ? req.query.url : req.body.url;
@@ -263,47 +246,17 @@ app.all('/api/tiktok', async (req, res) => {
   }
 });
 
-const port = process.env.PORT || 3000;
-app.listen(port, () => {
-  console.log(`Server listening on ${port}`);
-});/ Facebook URL normalizasyon fonksiyonu
-function normalizeFacebookUrl(url) {
-  try {
-    // fb.watch kısa linklerini dönüştür
-    if (url.includes('fb.watch')) {
-      const id = url.split('/').filter(Boolean).pop();
-      return `https://www.facebook.com/watch/?v=${id}`;
-    }
 
-    // share/v/... linklerini dönüştür
-    if (url.includes('/share/v/')) {
-      const id = url.split('/share/v/')[1].split('/')[0];
-      return `https://www.facebook.com/watch/?v=${id}`;
-    }
-
-    // zaten desteklenen formatta ise aynen döndür
-    return url;
-  } catch (e) {
-    return url; // hata olursa orijinal URL’yi döndür
-  }
-}
-
-// Facebook Downloader (FDown API)
+// Facebook Downloader
 app.all('/api/facebook', async (req, res) => {
   try {
     let url = req.method === 'GET' ? req.query.url : req.body.url;
     if (!url) return res.json({ success: false, message: 'URL gerekli' });
+    if (!url.includes('facebook.com') && !url.includes('fb.watch')) return res.json({ success: false, message: 'Geçersiz Facebook URL' });
+    if (!process.env.RAPIDAPI_KEY) return res.json({ success: false, message: 'Facebook için RapidAPI key gerekli' });
 
-    // normalize et
     url = normalizeFacebookUrl(url);
     console.log('Normalized Facebook URL:', url);
-
-    if (!url.includes('facebook.com') && !url.includes('fb.watch')) {
-      return res.json({ success: false, message: 'Geçersiz Facebook URL' });
-    }
-    if (!process.env.RAPIDAPI_KEY) {
-      return res.json({ success: false, message: 'Facebook için RapidAPI key gerekli' });
-    }
 
     const options = {
       method: 'POST',
@@ -328,7 +281,11 @@ app.all('/api/facebook', async (req, res) => {
     });
   }
 });
-// Error Handler
+
+const port = process.env.PORT || 3000;
+app.listen(port, () => {
+  console.log(`Server listening on ${port}`);
+});// Error Handler
 app.use((err, req, res, next) => {
     console.error('Server Error:', err.stack);
     res.status(500).json({

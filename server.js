@@ -15,7 +15,7 @@ const app = express();
 app.use(express.json());
 
 
-async function normalizeTikTokUrl(url) {
+ {
   try {
     const response = await axios.get(url, { maxRedirects: 5 });
     return response.request?.res?.responseUrl || url;
@@ -23,9 +23,6 @@ async function normalizeTikTokUrl(url) {
     return url;
   }
 }
-
-const app = express();
-const PORT = process.env.PORT || 3000;
 
 // Middleware
 app.use(cors());

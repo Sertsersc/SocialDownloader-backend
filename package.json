@@ -1,7 +1,3 @@
-// ========================================
-// package.json - Railway için DÜZELTİLMİŞ
-// ========================================
-
 {
   "name": "social-media-downloader-backend",
   "version": "2.0.0",

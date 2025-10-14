@@ -138,7 +138,7 @@ app.post('/api/youtube', async (req, res) => {
 });
 
 // Instagram Downloader
-app.all(['/api/instagram'], async (req, res) => {
+app.all('/api/instagram', async (req, res) => {
   try {
     const url = req.method === 'GET' ? req.query.url : req.body.url;
 
@@ -148,7 +148,7 @@ app.all(['/api/instagram'], async (req, res) => {
 
     const options = {
       method: 'GET',
-      url: 'https://instagram-reels-downloader-api.p.rapidapi.com/index',
+      url: 'https://instagram-reels-downloader-api.p.rapidapi.com/download',
       params: { url },
       headers: {
         'X-RapidAPI-Key': process.env.RAPIDAPI_KEY,
@@ -165,7 +165,7 @@ app.all(['/api/instagram'], async (req, res) => {
 });
 
 // TikTok Downloader
-app.all(['/api/tiktok'], async (req, res) => {
+app.all('/api/tiktok', async (req, res) => {
   try {
     const url = req.method === 'GET' ? req.query.url : req.body.url;
 
@@ -175,7 +175,7 @@ app.all(['/api/tiktok'], async (req, res) => {
 
     const options = {
       method: 'GET',
-      url: 'https://tiktok-video-downloader-api.p.rapidapi.com/analysis',
+      url: 'https://tiktok-video-downloader-api.p.rapidapi.com/media',
       params: { url },
       headers: {
         'X-RapidAPI-Key': process.env.RAPIDAPI_KEY,
@@ -192,7 +192,7 @@ app.all(['/api/tiktok'], async (req, res) => {
 });
 
 // Facebook Downloader
-app.all(['/api/facebook'], async (req, res) => {
+app.all('/api/facebook', async (req, res) => {
   try {
     const url = req.method === 'GET' ? req.query.url : req.body.url;
 
@@ -202,7 +202,7 @@ app.all(['/api/facebook'], async (req, res) => {
 
     const options = {
       method: 'GET',
-      url: 'https://facebook-media-downloader1.p.rapidapi.com/app/main.php',
+      url: 'https://facebook-media-downloader1.p.rapidapi.com/get_media',
       params: { url },
       headers: {
         'X-RapidAPI-Key': process.env.RAPIDAPI_KEY,

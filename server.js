@@ -43,7 +43,7 @@ app.post("/api/instagram", async (req, res) => {
   }
 });
 
-import cheerio from "cheerio"; // HTML parse için
+import * as cheerio from "cheerio";
 
 app.post("/api/facebook", async (req, res) => {
   try {

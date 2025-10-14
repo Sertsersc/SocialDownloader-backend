@@ -43,26 +43,44 @@ app.post("/api/instagram", async (req, res) => {
   }
 });
 
+import cheerio from "cheerio"; // HTML parse için
+
 app.post("/api/facebook", async (req, res) => {
   try {
     const { url } = req.body;
     if (!url) return res.status(400).json({ error: "Facebook URL required" });
 
-    const api = `https://snapinsta.app/api/facebook?url=${encodeURIComponent(url)}`;
-    const { data } = await axios.get(api);
+    const response = await axios.post(
+      "https://fdown.net/download.php",
+      new URLSearchParams({ URLz: url }).toString(),
+      {
+        headers: {
+          "Content-Type": "application/x-www-form-urlencoded",
+          "User-Agent": "Mozilla/5.0"
+        }
+      }
+    );
 
-    if (!data || !Array.isArray(data.links)) {
-      throw new Error("SnapInsta response invalid or missing media links");
+    const $ = cheerio.load(response.data);
+    const links = [];
+
+    $("a.btn.btn-download").each((_, el) => {
+      const href = $(el).attr("href");
+      const quality = $(el).text().trim();
+      if (href) links.push({ quality, url: href });
+    });
+
+    if (links.length === 0) {
+      throw new Error("fdown.net response did not contain any media links");
     }
 
     res.json({
       platform: "facebook",
-      media: data.links,
-      title: data.title || "unknown",
+      media: links
     });
 
   } catch (err) {
-    console.error("Facebook Downloader Error:", {
+    console.error("fdown.net Facebook Downloader Error:", {
       message: err.message,
       response: err.response?.data,
       status: err.response?.status,
@@ -70,7 +88,7 @@ app.post("/api/facebook", async (req, res) => {
 
     res.status(500).json({
       error: "Facebook download failed",
-      details: err.response?.data?.error || err.message
+      details: err.message
     });
   }
 });

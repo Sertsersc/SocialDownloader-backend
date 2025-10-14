@@ -161,19 +161,18 @@ app.post('/api/instagram', async (req, res) => {
                 success: false,
                 message: 'Instagram için RapidAPI key gerekli. Lütfen environment variable ekleyin.'
             });
-        }
+        }	
 
-        const options = {
-            method: 'GET',
-            url: 'https://instagram-downloader-download-instagram-videos-stories.p.rapidapi.com/index',
-            params: { url: url },
-            headers: {
-                'X-RapidAPI-Key': process.env.RAPIDAPI_KEY,
-                'X-RapidAPI-Host': 'instagram-downloader-download-instagram-videos-stories.p.rapidapi.com'
-            },
-            timeout: 10000
-        };
-
+       const options = {
+			method: 'GET',
+			url: 'https://instagram-reels-downloader-api.p.rapidapi.com/index',
+			params: { url },
+			headers: {
+				'X-RapidAPI-Key': process.env.RAPIDAPI_KEY,
+				'X-RapidAPI-Host': 'instagram-reels-downloader-api.p.rapidapi.com'
+  },
+  timeout: 10000
+};
         const response = await axios.request(options);
         
         if (response.data && response.data.media) {
@@ -226,15 +225,15 @@ app.post('/api/tiktok', async (req, res) => {
         }
 
         const options = {
-            method: 'GET',
-            url: 'https://tiktok-download-without-watermark.p.rapidapi.com/analysis',
-            params: { url: url },
-            headers: {
-                'X-RapidAPI-Key': process.env.RAPIDAPI_KEY,
-                'X-RapidAPI-Host': 'tiktok-download-without-watermark.p.rapidapi.com'
-            },
-            timeout: 10000
-        };
+			method: 'GET',
+			url: 'https://tiktok-video-downloader-api.p.rapidapi.com/analysis',
+			params: { url },
+			headers: {
+				'X-RapidAPI-Key': process.env.RAPIDAPI_KEY,
+				'X-RapidAPI-Host': 'tiktok-video-downloader-api.p.rapidapi.com'
+  },
+  timeout: 10000
+};
 
         const response = await axios.request(options);
         
@@ -287,16 +286,16 @@ app.post('/api/facebook', async (req, res) => {
             });
         }
 
-        const options = {
-            method: 'GET',
-            url: 'https://facebook-reel-and-video-downloader.p.rapidapi.com/app/main.php',
-            params: { url: url },
-            headers: {
-                'X-RapidAPI-Key': process.env.RAPIDAPI_KEY,
-                'X-RapidAPI-Host': 'facebook-reel-and-video-downloader.p.rapidapi.com'
-            },
-            timeout: 10000
-        };
+       const options = {
+			method: 'GET',
+			url: 'https://facebook-media-downloader1.p.rapidapi.com/app/main.php',
+			params: { url },
+			headers: {
+				'X-RapidAPI-Key': process.env.RAPIDAPI_KEY,
+				'X-RapidAPI-Host': 'facebook-media-downloader1.p.rapidapi.com'
+  },
+  timeout: 10000
+};
 
         const response = await axios.request(options);
         

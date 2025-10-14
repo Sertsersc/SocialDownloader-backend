@@ -138,206 +138,85 @@ app.post('/api/youtube', async (req, res) => {
 });
 
 // Instagram Downloader
-app.post('/api/instagram', async (req, res) => {
-    try {
-        const { url } = req.body;
-        
-        if (!url) {
-            return res.json({
-                success: false,
-                message: 'URL gerekli'
-            });
-        }
+app.all(['/api/instagram'], async (req, res) => {
+  try {
+    const url = req.method === 'GET' ? req.query.url : req.body.url;
 
-        if (!url.includes('instagram.com')) {
-            return res.json({
-                success: false,
-                message: 'Geçersiz Instagram URL'
-            });
-        }
+    if (!url) return res.json({ success: false, message: 'URL gerekli' });
+    if (!url.includes('instagram.com')) return res.json({ success: false, message: 'Geçersiz Instagram URL' });
+    if (!process.env.RAPIDAPI_KEY) return res.json({ success: false, message: 'Instagram için RapidAPI key gerekli' });
 
-        if (!process.env.RAPIDAPI_KEY || process.env.RAPIDAPI_KEY === 'your_rapidapi_key_here') {
-            return res.json({
-                success: false,
-                message: 'Instagram için RapidAPI key gerekli. Lütfen environment variable ekleyin.'
-            });
-        }	
+    const options = {
+      method: 'GET',
+      url: 'https://instagram-reels-downloader-api.p.rapidapi.com/index',
+      params: { url },
+      headers: {
+        'X-RapidAPI-Key': process.env.RAPIDAPI_KEY,
+        'X-RapidAPI-Host': 'instagram-reels-downloader-api.p.rapidapi.com'
+      }
+    };
 
-       const options = {
-			method: 'GET',
-			url: 'https://instagram-reels-downloader-api.p.rapidapi.com/index',
-			params: { url },
-			headers: {
-				'X-RapidAPI-Key': process.env.RAPIDAPI_KEY,
-				'X-RapidAPI-Host': 'instagram-reels-downloader-api.p.rapidapi.com'
-  },
-  timeout: 10000
-};
-        const response = await axios.request(options);
-        
-        if (response.data && response.data.media) {
-            res.json({
-                success: true,
-                downloadUrl: response.data.media,
-                title: response.data.title || 'Instagram Video',
-                thumbnail: response.data.thumbnail
-            });
-        } else {
-            res.json({
-                success: false,
-                message: 'Video bilgisi alınamadı'
-            });
-        }
-
-    } catch (error) {
-        console.error('Instagram Error:', error.message);
-        res.json({
-            success: false,
-            message: 'Instagram için RapidAPI key gerekli veya hata oluştu: ' + error.message
-        });
-    }
+    const response = await axios.request(options);
+    res.json({ success: true, data: response.data });
+  } catch (error) {
+    console.error('Instagram Error:', error.response?.data || error.message);
+    res.json({ success: false, message: 'Instagram hata: ' + (error.response?.data?.message || error.message) });
+  }
 });
 
 // TikTok Downloader
-app.post('/api/tiktok', async (req, res) => {
-    try {
-        const { url } = req.body;
-        
-        if (!url) {
-            return res.json({
-                success: false,
-                message: 'URL gerekli'
-            });
-        }
+app.all(['/api/tiktok'], async (req, res) => {
+  try {
+    const url = req.method === 'GET' ? req.query.url : req.body.url;
 
-        if (!url.includes('tiktok.com')) {
-            return res.json({
-                success: false,
-                message: 'Geçersiz TikTok URL'
-            });
-        }
+    if (!url) return res.json({ success: false, message: 'URL gerekli' });
+    if (!url.includes('tiktok.com')) return res.json({ success: false, message: 'Geçersiz TikTok URL' });
+    if (!process.env.RAPIDAPI_KEY) return res.json({ success: false, message: 'TikTok için RapidAPI key gerekli' });
 
-        if (!process.env.RAPIDAPI_KEY || process.env.RAPIDAPI_KEY === 'your_rapidapi_key_here') {
-            return res.json({
-                success: false,
-                message: 'TikTok için RapidAPI key gerekli'
-            });
-        }
+    const options = {
+      method: 'GET',
+      url: 'https://tiktok-video-downloader-api.p.rapidapi.com/analysis',
+      params: { url },
+      headers: {
+        'X-RapidAPI-Key': process.env.RAPIDAPI_KEY,
+        'X-RapidAPI-Host': 'tiktok-video-downloader-api.p.rapidapi.com'
+      }
+    };
 
-        const options = {
-			method: 'GET',
-			url: 'https://tiktok-video-downloader-api.p.rapidapi.com/analysis',
-			params: { url },
-			headers: {
-				'X-RapidAPI-Key': process.env.RAPIDAPI_KEY,
-				'X-RapidAPI-Host': 'tiktok-video-downloader-api.p.rapidapi.com'
-  },
-  timeout: 10000
-};
-
-        const response = await axios.request(options);
-        
-        if (response.data && response.data.data) {
-            res.json({
-                success: true,
-                downloadUrl: response.data.data.play,
-                title: response.data.data.title || 'TikTok Video',
-                thumbnail: response.data.data.cover
-            });
-        } else {
-            res.json({
-                success: false,
-                message: 'Video bilgisi alınamadı'
-            });
-        }
-
-    } catch (error) {
-        console.error('TikTok Error:', error.message);
-        res.json({
-            success: false,
-            message: 'TikTok için RapidAPI key gerekli veya hata: ' + error.message
-        });
-    }
+    const response = await axios.request(options);
+    res.json({ success: true, data: response.data });
+  } catch (error) {
+    console.error('TikTok Error:', error.response?.data || error.message);
+    res.json({ success: false, message: 'TikTok hata: ' + (error.response?.data?.message || error.message) });
+  }
 });
 
 // Facebook Downloader
-app.post('/api/facebook', async (req, res) => {
-    try {
-        const { url } = req.body;
-        
-        if (!url) {
-            return res.json({
-                success: false,
-                message: 'URL gerekli'
-            });
-        }
+app.all(['/api/facebook'], async (req, res) => {
+  try {
+    const url = req.method === 'GET' ? req.query.url : req.body.url;
 
-        if (!url.includes('facebook.com') && !url.includes('fb.watch')) {
-            return res.json({
-                success: false,
-                message: 'Geçersiz Facebook URL'
-            });
-        }
+    if (!url) return res.json({ success: false, message: 'URL gerekli' });
+    if (!url.includes('facebook.com') && !url.includes('fb.watch')) return res.json({ success: false, message: 'Geçersiz Facebook URL' });
+    if (!process.env.RAPIDAPI_KEY) return res.json({ success: false, message: 'Facebook için RapidAPI key gerekli' });
 
-        if (!process.env.RAPIDAPI_KEY || process.env.RAPIDAPI_KEY === 'your_rapidapi_key_here') {
-            return res.json({
-                success: false,
-                message: 'Facebook için RapidAPI key gerekli'
-            });
-        }
+    const options = {
+      method: 'GET',
+      url: 'https://facebook-media-downloader1.p.rapidapi.com/app/main.php',
+      params: { url },
+      headers: {
+        'X-RapidAPI-Key': process.env.RAPIDAPI_KEY,
+        'X-RapidAPI-Host': 'facebook-media-downloader1.p.rapidapi.com'
+      }
+    };
 
-       const options = {
-			method: 'GET',
-			url: 'https://facebook-media-downloader1.p.rapidapi.com/app/main.php',
-			params: { url },
-			headers: {
-				'X-RapidAPI-Key': process.env.RAPIDAPI_KEY,
-				'X-RapidAPI-Host': 'facebook-media-downloader1.p.rapidapi.com'
-  },
-  timeout: 10000
-};
-
-        const response = await axios.request(options);
-        
-        if (response.data && response.data.links) {
-            res.json({
-                success: true,
-                downloadUrl: response.data.links['Download High Quality'],
-                title: 'Facebook Video'
-            });
-        } else {
-            res.json({
-                success: false,
-                message: 'Video bilgisi alınamadı'
-            });
-        }
-
-    } catch (error) {
-        console.error('Facebook Error:', error.message);
-        res.json({
-            success: false,
-            message: 'Facebook için RapidAPI key gerekli veya hata: ' + error.message
-        });
-    }
+    const response = await axios.request(options);
+    res.json({ success: true, data: response.data });
+  } catch (error) {
+    console.error('Facebook Error:', error.response?.data || error.message);
+    res.json({ success: false, message: 'Facebook hata: ' + (error.response?.data?.message || error.message) });
+  }
 });
-
-// 404 Handler
-app.use((req, res) => {
-    res.status(404).json({
-        success: false,
-        message: 'Endpoint bulunamadı',
-        path: req.path,
-        availableEndpoints: [
-            'GET /',
-            'GET /health',
-            'POST /api/youtube',
-            'POST /api/instagram',
-            'POST /api/tiktok',
-            'POST /api/facebook'
-        ]
-    });
-});
-
 // Error Handler
 app.use((err, req, res, next) => {
     console.error('Server Error:', err.stack);

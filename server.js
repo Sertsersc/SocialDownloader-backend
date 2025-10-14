@@ -2,9 +2,9 @@
 // server.js - Railway için optimize edilmiş
 // ========================================
 
-const express = require('express');
-const cors = require('cors');
-const axios = require('axios');
+import express from "express";
+import cors from "cors";
+import axios from "axios";
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -20,26 +20,26 @@ app.use((req, res, next) => {
 });
 
 // Ana sayfa - Test endpoint
-app.get('/', (req, res) => {
+app.get("/", (req, res) => {
   res.json({
     success: true,
-    message: 'Sosyal Medya İndirici API - Railway',
-    version: '2.0',
+    message: "Sosyal Medya İndirici API - Railway",
+    version: "2.0",
     endpoints: {
-      youtube: 'POST /api/youtube',
-      instagram: 'POST /api/instagram',
-      tiktok: 'POST /api/tiktok',
-      facebook: 'POST /api/facebook'
+      youtube: "POST /api/youtube",
+      instagram: "POST /api/instagram",
+      tiktok: "POST /api/tiktok",
+      facebook: "POST /api/facebook"
     },
-    status: 'Çalışıyor ✅',
+    status: "Çalışıyor ✅",
     timestamp: new Date().toISOString()
   });
 });
 
 // Health check endpoint
-app.get('/health', (req, res) => {
+app.get("/health", (req, res) => {
   res.json({
-    status: 'OK',
+    status: "OK",
     uptime: process.uptime(),
     timestamp: new Date().toISOString()
   });

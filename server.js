@@ -15,36 +15,40 @@ app.use(express.json());
 
 // Logging
 app.use((req, res, next) => {
-    console.log(`${new Date().toISOString()} - ${req.method} ${req.path}`);
-    next();
+  console.log(`${new Date().toISOString()} - ${req.method} ${req.path}`);
+  next();
 });
 
 // Ana sayfa - Test endpoint
 app.get('/', (req, res) => {
-    res.json({
-        success: true,
-        message: 'Sosyal Medya İndirici API - Railway',
-        version: '2.0',
-        endpoints: {
-            youtube: 'POST /api/youtube',
-            instagram: 'POST /api/instagram',
-            tiktok: 'POST /api/tiktok',
-            facebook: 'POST /api/facebook'
-        },
-        status: 'Çalışıyor ✅',
-        timestamp: new Date().toISOString()
-    });
+  res.json({
+    success: true,
+    message: 'Sosyal Medya İndirici API - Railway',
+    version: '2.0',
+    endpoints: {
+      youtube: 'POST /api/youtube',
+      instagram: 'POST /api/instagram',
+      tiktok: 'POST /api/tiktok',
+      facebook: 'POST /api/facebook'
+    },
+    status: 'Çalışıyor ✅',
+    timestamp: new Date().toISOString()
+  });
 });
 
 // Health check endpoint
 app.get('/health', (req, res) => {
-    res.json({ 
-        status: 'OK', 
-        uptime: process.uptime(),
-        timestamp: new Date().toISOString() 
-    });
+  res.json({
+    status: 'OK',
+    uptime: process.uptime(),
+    timestamp: new Date().toISOString()
+  });
 });
 
+// Sunucuyu başlat
+app.listen(PORT, () => {
+  console.log(`✅ Server is running on port ${PORT}`);
+});
 // YouTube Downloader (RapidAPI ile)
 app.post('/api/youtube', async (req, res) => {
     try {

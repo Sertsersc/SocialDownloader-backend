@@ -179,13 +179,6 @@ app.all('/api/instagram', async (req, res) => {
 app.get('/health', (req, res) => {
   res.json({ ok: true });
 });
-
-// Render/Railway port
-const port = process.env.PORT || 3000;
-app.listen(port, () => {
-  console.log(`Server listening on ${port}`);
-});
-
 // TikTok Downloader
 app.all('/api/tiktok', async (req, res) => {
   try {

@@ -137,6 +137,12 @@ app.post('/api/youtube', async (req, res) => {
     }
 });
 
+import express from 'express';
+import axios from 'axios';
+
+const app = express();
+app.use(express.json());
+
 // Instagram Downloader
 app.all('/api/instagram', async (req, res) => {
   try {
@@ -152,46 +158,44 @@ app.all('/api/instagram', async (req, res) => {
       return res.json({ success: false, message: 'Instagram için RapidAPI key gerekli' });
     }
 
+    // options ROUTE İÇİNDE TANIMLI
     const options = {
-      method: 'POST', // <-- GET yerine POST
+      method: 'POST',
       url: 'https://instagram-reels-downloader-api.p.rapidapi.com/download',
       headers: {
         'Content-Type': 'application/json',
         'X-RapidAPI-Key': process.env.RAPIDAPI_KEY,
         'X-RapidAPI-Host': 'instagram-reels-downloader-api.p.rapidapi.com'
       },
-      data: { url } // POST body içinde gönderiyoruz
+      data: { url }
     };
 
     const response = await axios.request(options);
-    res.json({ success: true, data: response.data });
-
+    return res.json({ success: true, data: response.data });
   } catch (error) {
     console.error('Instagram Error:', error.response?.data || error.message);
-    res.json({
+    return res.json({
       success: false,
       message: 'Instagram hata: ' + (error.response?.data?.message || error.message)
     });
   }
 });
 
-try {
-  const response = await axios.request(options);
-  res.json({ success: true, data: response.data });
-} catch (error) {
-  console.error('Instagram Error:', error.response?.data || error.message);
-  res.json({
-    success: false,
-    message: 'Instagram hata: ' + (error.response?.data?.message || error.message)
-  });
-};
+// Healthcheck
+app.get('/health', (req, res) => {
+  res.json({ ok: true });
+});
 
+// Render/Railway port
+const port = process.env.PORT || 3000;
+app.listen(port, () => {
+  console.log(`Server listening on ${port}`);
+});
 
 // TikTok Downloader
 app.all('/api/tiktok', async (req, res) => {
   try {
     const url = req.method === 'GET' ? req.query.url : req.body.url;
-
     if (!url) return res.json({ success: false, message: 'URL gerekli' });
     if (!url.includes('tiktok.com')) return res.json({ success: false, message: 'Geçersiz TikTok URL' });
     if (!process.env.RAPIDAPI_KEY) return res.json({ success: false, message: 'TikTok için RapidAPI key gerekli' });
@@ -203,14 +207,15 @@ app.all('/api/tiktok', async (req, res) => {
       headers: {
         'X-RapidAPI-Key': process.env.RAPIDAPI_KEY,
         'X-RapidAPI-Host': 'tiktok-video-downloader-api.p.rapidapi.com'
-      }
+      },
+      timeout: 20000
     };
 
     const response = await axios.request(options);
-    res.json({ success: true, data: response.data });
+    return res.json({ success: true, data: response.data });
   } catch (error) {
     console.error('TikTok Error:', error.response?.data || error.message);
-    res.json({ success: false, message: 'TikTok hata: ' + (error.response?.data?.message || error.message) });
+    return res.json({ success: false, message: 'TikTok hata: ' + (error.response?.data?.message || error.message) });
   }
 });
 
@@ -218,16 +223,11 @@ app.all('/api/tiktok', async (req, res) => {
 app.all('/api/facebook', async (req, res) => {
   try {
     const url = req.method === 'GET' ? req.query.url : req.body.url;
-
-    if (!url) {
-      return res.json({ success: false, message: 'URL gerekli' });
-    }
+    if (!url) return res.json({ success: false, message: 'URL gerekli' });
     if (!url.includes('facebook.com') && !url.includes('fb.watch')) {
       return res.json({ success: false, message: 'Geçersiz Facebook URL' });
     }
-    if (!process.env.RAPIDAPI_KEY) {
-      return res.json({ success: false, message: 'Facebook için RapidAPI key gerekli' });
-    }
+    if (!process.env.RAPIDAPI_KEY) return res.json({ success: false, message: 'Facebook için RapidAPI key gerekli' });
 
     const options = {
       method: 'POST',
@@ -237,18 +237,15 @@ app.all('/api/facebook', async (req, res) => {
         'X-RapidAPI-Key': process.env.RAPIDAPI_KEY,
         'X-RapidAPI-Host': 'fdown1.p.rapidapi.com'
       },
-      data: { url }
+      data: { url },
+      timeout: 20000
     };
 
     const response = await axios.request(options);
-    res.json({ success: true, data: response.data });
-
+    return res.json({ success: true, data: response.data });
   } catch (error) {
     console.error('Facebook Error:', error.response?.data || error.message);
-    res.json({
-      success: false,
-      message: 'Facebook hata: ' + (error.response?.data?.message || error.message)
-    });
+    return res.json({ success: false, message: 'Facebook hata: ' + (error.response?.data?.message || error.message) });
   }
 });
 // Error Handler

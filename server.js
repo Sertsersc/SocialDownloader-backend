@@ -155,11 +155,11 @@ app.all('/api/instagram', async (req, res) => {
     // options ROUTE İÇİNDE TANIMLI
     const options = {
       method: 'POST',
-      url: 'https://instagram-reels-downloader-api.p.rapidapi.com/download',
+      url: 'https://social-download-all-in-one.p.rapidapi.com/v1/social/autolink',
       headers: {
         'Content-Type': 'application/json',
         'X-RapidAPI-Key': process.env.RAPIDAPI_KEY,
-        'X-RapidAPI-Host': 'instagram-reels-downloader-api.p.rapidapi.com'
+        'X-RapidAPI-Host':'https://social-download-all-in-one.p.rapidapi.com'
       },
       data: { url }
     };
@@ -206,15 +206,44 @@ app.all('/api/tiktok', async (req, res) => {
   }
 });
 
+// Facebook URL normalizasyon fonksiyonu
+function normalizeFacebookUrl(url) {
+  try {
+    // fb.watch kısa linklerini dönüştür
+    if (url.includes('fb.watch')) {
+      const id = url.split('/').filter(Boolean).pop();
+      return `https://www.facebook.com/watch/?v=${id}`;
+    }
+
+    // share/v/... linklerini dönüştür
+    if (url.includes('/share/v/')) {
+      const id = url.split('/share/v/')[1].split('/')[0];
+      return `https://www.facebook.com/watch/?v=${id}`;
+    }
+
+    // zaten desteklenen formatta ise aynen döndür
+    return url;
+  } catch (e) {
+    return url; // hata olursa orijinal URL’yi döndür
+  }
+}
+
 // Facebook Downloader (FDown API)
 app.all('/api/facebook', async (req, res) => {
   try {
-    const url = req.method === 'GET' ? req.query.url : req.body.url;
+    let url = req.method === 'GET' ? req.query.url : req.body.url;
     if (!url) return res.json({ success: false, message: 'URL gerekli' });
+
+    // normalize et
+    url = normalizeFacebookUrl(url);
+    console.log('Normalized Facebook URL:', url);
+
     if (!url.includes('facebook.com') && !url.includes('fb.watch')) {
       return res.json({ success: false, message: 'Geçersiz Facebook URL' });
     }
-    if (!process.env.RAPIDAPI_KEY) return res.json({ success: false, message: 'Facebook için RapidAPI key gerekli' });
+    if (!process.env.RAPIDAPI_KEY) {
+      return res.json({ success: false, message: 'Facebook için RapidAPI key gerekli' });
+    }
 
     const options = {
       method: 'POST',
@@ -230,9 +259,13 @@ app.all('/api/facebook', async (req, res) => {
 
     const response = await axios.request(options);
     return res.json({ success: true, data: response.data });
+
   } catch (error) {
     console.error('Facebook Error:', error.response?.data || error.message);
-    return res.json({ success: false, message: 'Facebook hata: ' + (error.response?.data?.message || error.message) });
+    return res.json({
+      success: false,
+      message: 'Facebook hata: ' + (error.response?.data?.message || error.message)
+    });
   }
 });
 // Error Handler

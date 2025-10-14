@@ -210,7 +210,6 @@ app.get('/health', (req, res) => {
 });
  // dosyanın en üstünde olmalı
 
-async function normalizeTikTokUrl(url) {
   try {
     const response = await axios.get(url, { maxRedirects: 5 });
     return response.request?.res?.responseUrl || url;
@@ -223,7 +222,6 @@ import axios from 'axios';
 const app = express();
 app.use(express.json());
 
-async function normalizeTikTokUrl(url) {
   try {
     const response = await axios.get(url, { maxRedirects: 5 });
     return response.request?.res?.responseUrl || url;

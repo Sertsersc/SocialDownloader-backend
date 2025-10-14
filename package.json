@@ -3,6 +3,7 @@
   "version": "2.0.0",
   "description": "Social Media Video Downloader API - Railway Optimized",
   "main": "server.js",
+  "type": "module",
   "engines": {
     "node": ">=18.0.0"
   },
@@ -18,18 +19,17 @@
     "tiktok",
     "railway"
   ],
-  "author": "",
+  "author": "Demet",
   "license": "MIT",
   "dependencies": {
-    "express": "^4.21.2",
+    "axios": "^1.6.8",
     "cors": "^2.8.5",
-    "axios": "^1.12.2",
-    "dotenv": "^16.6.1",
-    "youtube-dl-exec": "^3.0.25",
+    "dotenv": "^16.4.5",
+    "express": "^4.21.2",
     "instagram-scraping": "^1.0.17",
     "node-fetch": "^3.3.2"
   },
   "devDependencies": {
-    "nodemon": "^3.0.1"
+    "nodemon": "^3.1.0"
   }
 }

@@ -199,7 +199,7 @@ app.all('/api/instagram', async (req, res) => {
 app.get('/health', (req, res) => {
   res.json({ ok: true });
 });
-const axios = require('axios'); // dosyanın en üstünde olmalı
+ // dosyanın en üstünde olmalı
 
 async function normalizeTikTokUrl(url) {
   try {

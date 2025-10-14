@@ -175,12 +175,16 @@ app.all('/api/instagram', async (req, res) => {
   }
 });
 
-    const response = await axios.request(options);
-    res.json({ success: true, data: response.data });
-  } catch (error) {
-    console.error('Instagram Error:', error.response?.data || error.message);
-    res.json({ success: false, message: 'Instagram hata: ' + (error.response?.data?.message || error.message) });
-  }
+try {
+  const response = await axios.request(options);
+  res.json({ success: true, data: response.data });
+} catch (error) {
+  console.error('Instagram Error:', error.response?.data || error.message);
+  res.json({
+    success: false,
+    message: 'Instagram hata: ' + (error.response?.data?.message || error.message)
+  });
+}
 });
 
 // TikTok Downloader

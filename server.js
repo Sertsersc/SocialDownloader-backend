@@ -184,8 +184,8 @@ try {
     success: false,
     message: 'Instagram hata: ' + (error.response?.data?.message || error.message)
   });
-}
-});
+};
+
 
 // TikTok Downloader
 app.all('/api/tiktok', async (req, res) => {

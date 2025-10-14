@@ -137,7 +137,7 @@ app.post('/api/youtube', async (req, res) => {
     }
 });
 
-// Instagram Downloader
+// Instagram Downloader (stories-videos4 API)
 app.all('/api/instagram', async (req, res) => {
   try {
     const url = req.method === 'GET' ? req.query.url : req.body.url;
@@ -152,20 +152,20 @@ app.all('/api/instagram', async (req, res) => {
       return res.json({ success: false, message: 'Instagram için RapidAPI key gerekli' });
     }
 
-    // options ROUTE İÇİNDE TANIMLI
     const options = {
-      method: 'POST',
-      url: 'https://social-download-all-in-one.p.rapidapi.com/v1/social/autolink',
+      method: 'GET',
+      url: 'https://instagram-downloader-download-instagram-stories-videos4.p.rapidapi.com/convert',
+      params: { url }, // query parametre olarak gönderiyoruz
       headers: {
-        'Content-Type': 'application/json',
         'X-RapidAPI-Key': process.env.RAPIDAPI_KEY,
-        'X-RapidAPI-Host':'https://social-download-all-in-one.p.rapidapi.com'
+        'X-RapidAPI-Host': 'instagram-downloader-download-instagram-stories-videos4.p.rapidapi.com'
       },
-      data: { url }
+      timeout: 20000
     };
 
     const response = await axios.request(options);
     return res.json({ success: true, data: response.data });
+
   } catch (error) {
     console.error('Instagram Error:', error.response?.data || error.message);
     return res.json({

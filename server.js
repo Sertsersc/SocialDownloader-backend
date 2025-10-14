@@ -43,7 +43,6 @@ app.post("/api/instagram", async (req, res) => {
   }
 });
 
-// Facebook Downloader (SnapInsta API)
 app.post("/api/facebook", async (req, res) => {
   try {
     const { url } = req.body;
@@ -51,13 +50,28 @@ app.post("/api/facebook", async (req, res) => {
 
     const api = `https://snapinsta.app/api/facebook?url=${encodeURIComponent(url)}`;
     const { data } = await axios.get(api);
+
+    if (!data || !Array.isArray(data.links)) {
+      throw new Error("SnapInsta response invalid or missing media links");
+    }
+
     res.json({
       platform: "facebook",
-      media: data?.links || [],
-      title: data?.title || "unknown",
+      media: data.links,
+      title: data.title || "unknown",
     });
+
   } catch (err) {
-    res.status(500).json({ error: "Facebook download failed", details: err.message });
+    console.error("Facebook Downloader Error:", {
+      message: err.message,
+      response: err.response?.data,
+      status: err.response?.status,
+    });
+
+    res.status(500).json({
+      error: "Facebook download failed",
+      details: err.response?.data?.error || err.message
+    });
   }
 });
 

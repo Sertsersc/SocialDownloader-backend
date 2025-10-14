@@ -199,6 +199,8 @@ app.all('/api/instagram', async (req, res) => {
 app.get('/health', (req, res) => {
   res.json({ ok: true });
 });
+const axios = require('axios'); // dosyanın en üstünde olmalı
+
 async function normalizeTikTokUrl(url) {
   try {
     const response = await axios.get(url, { maxRedirects: 5 });
@@ -206,8 +208,7 @@ async function normalizeTikTokUrl(url) {
   } catch {
     return url;
   }
-}
-// TikTok Downloaderapp.all('/api/tiktok', async (req, res) => {
+}// TikTok Downloaderapp.all('/api/tiktok', async (req, res) => {
   try {
     let url = req.method === 'GET' ? req.query.url : req.body.url;
     if (!url) return res.json({ success: false, message: 'URL gerekli' });

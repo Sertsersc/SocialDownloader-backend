@@ -1,64 +1,90 @@
 import express from "express";
 import axios from "axios";
+import * as cheerio from "cheerio";
 
 const app = express();
 const PORT = process.env.PORT || 3000;
-
 app.use(express.json());
 
-// TikTok Downloader (TiklyDown API)
+/**
+ * Ortak axios instance
+ * Cloudflare ve SSL hatalarını önlemek için güvenli proxy ayarları
+ */
+const http = axios.create({
+  timeout: 15000,
+  headers: {
+    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)",
+    "Accept": "application/json, text/html, */*",
+  },
+  validateStatus: () => true,
+});
+
+/**
+ * ✅ TikTok Downloader
+ */
 app.post("/api/tiktok", async (req, res) => {
   try {
     const { url } = req.body;
     if (!url) return res.status(400).json({ error: "TikTok URL required" });
 
-    const api = `https://api.tiklydown.eu.org/api/download?url=${encodeURIComponent(url)}`;
-    const { data } = await axios.get(api);
+    const proxyUrl = `https://api.allorigins.win/get?url=${encodeURIComponent(
+      `https://api.tiklydown.eu.org/api/download?url=${url}`
+    )}`;
+
+    const { data } = await http.get(proxyUrl);
+    const json = JSON.parse(data.contents);
+
     res.json({
       platform: "tiktok",
-      video: data.video || null,
-      music: data.music || null,
-      thumbnail: data.cover || null,
+      video: json.video,
+      music: json.music,
+      thumbnail: json.cover,
     });
   } catch (err) {
     res.status(500).json({ error: "TikTok download failed", details: err.message });
   }
 });
 
-// Instagram Downloader (igram.world)
+/**
+ * ✅ Instagram Downloader
+ */
 app.post("/api/instagram", async (req, res) => {
   try {
     const { url } = req.body;
     if (!url) return res.status(400).json({ error: "Instagram URL required" });
 
-    const api = `https://igram.world/api/instagram?url=${encodeURIComponent(url)}`;
-    const { data } = await axios.get(api);
+    const proxyUrl = `https://api.allorigins.win/get?url=${encodeURIComponent(
+      `https://igram.world/api/instagram?url=${url}`
+    )}`;
+
+    const { data } = await http.get(proxyUrl);
+    const json = JSON.parse(data.contents);
+
     res.json({
       platform: "instagram",
-      media: data?.media || [],
-      author: data?.author || "unknown",
+      media: json?.media || [],
+      author: json?.author || "unknown",
     });
   } catch (err) {
     res.status(500).json({ error: "Instagram download failed", details: err.message });
   }
 });
 
-import * as cheerio from "cheerio";
-
+/**
+ * ✅ Facebook Downloader (fdown.net)
+ */
 app.post("/api/facebook", async (req, res) => {
   try {
     const { url } = req.body;
     if (!url) return res.status(400).json({ error: "Facebook URL required" });
 
-    const response = await axios.post(
-      "https://fdown.net/download.php",
+    const proxyUrl = "https://api.allorigins.win/raw?url=" +
+      encodeURIComponent("https://fdown.net/download.php");
+
+    const response = await http.post(
+      proxyUrl,
       new URLSearchParams({ URLz: url }).toString(),
-      {
-        headers: {
-          "Content-Type": "application/x-www-form-urlencoded",
-          "User-Agent": "Mozilla/5.0"
-        }
-      }
+      { headers: { "Content-Type": "application/x-www-form-urlencoded" } }
     );
 
     const $ = cheerio.load(response.data);
@@ -70,26 +96,12 @@ app.post("/api/facebook", async (req, res) => {
       if (href) links.push({ quality, url: href });
     });
 
-    if (links.length === 0) {
-      throw new Error("fdown.net response did not contain any media links");
-    }
+    if (!links.length)
+      throw new Error("No downloadable links found on fdown.net");
 
-    res.json({
-      platform: "facebook",
-      media: links
-    });
-
+    res.json({ platform: "facebook", media: links });
   } catch (err) {
-    console.error("fdown.net Facebook Downloader Error:", {
-      message: err.message,
-      response: err.response?.data,
-      status: err.response?.status,
-    });
-
-    res.status(500).json({
-      error: "Facebook download failed",
-      details: err.message
-    });
+    res.status(500).json({ error: "Facebook download failed", details: err.message });
   }
 });
 

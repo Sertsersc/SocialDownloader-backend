@@ -12,13 +12,14 @@ function delay(ms) {
 }
 
 async function fetchRapidAPI(url) {
-  try {
-    let response;
-    let downloadUrl = null;
-    let thumbnail = null;
-    let duration = null;
-    let title = null;
+  let response;
+  let downloadUrl = null;
+  let thumbnail = null;
+  let duration = null;
+  let title = null;
 
+  try {
+    // Instagram
     if (url.includes("instagram.com")) {
       const options = {
         method: "GET",
@@ -35,35 +36,49 @@ async function fetchRapidAPI(url) {
         downloadUrl = media.url || null;
         thumbnail = media.thumbnail || null;
         duration = media.duration || null;
+        title = media.title || null;
       }
 
+    // YouTube
     } else if (url.includes("youtube.com") || url.includes("youtu.be")) {
       const videoId = url.includes("v=") ? url.split("v=")[1].split("&")[0] : url.split("/").pop();
       const options = {
         method: "GET",
-        url: `https://youtube-video-fast-downloader-24-7.p.rapidapi.com/download_video/${videoId}`,
-        params: { quality: "247" },
+        url: `https://youtube-mp4-mp3-downloader.p.rapidapi.com/api/v1/download`,
+        params: {
+          id: videoId,
+          format: "720",
+          audioQuality: "128",
+          addInfo: "false"
+        },
         headers: {
           "x-rapidapi-key": RAPIDAPI_KEY,
-          "x-rapidapi-host": "youtube-video-fast-downloader-24-7.p.rapidapi.com"
+          "x-rapidapi-host": "youtube-mp4-mp3-downloader.p.rapidapi.com"
         },
         timeout: 15000
       };
 
-      for (let i = 0; i < 5; i++) {
+      for (let attempt = 1; attempt <= 3; attempt++) {
         try {
           response = await axios.request(options);
-          downloadUrl = response.data?.file || response.data?.reserved_file || null;
-          title = response.data?.title || null;
+          downloadUrl = response.data?.downloadUrl || response.data?.file || null;
           thumbnail = response.data?.thumbnail || null;
+          title = response.data?.title || null;
           duration = response.data?.duration || null;
-          if (downloadUrl) break;
+
+          if (downloadUrl) {
+            console.log(`YouTube SUCCESS on attempt ${attempt}`);
+            break;
+          } else {
+            console.log(`YouTube waiting file on attempt ${attempt}`);
+          }
         } catch (err) {
-          console.log(`YouTube attempt ${i+1} failed: ${err.message}`);
+          console.log(`YouTube attempt ${attempt} failed: ${err.message}`);
         }
-        await delay(10000);
+        await delay(5000);
       }
 
+    // Facebook
     } else if (url.includes("facebook.com") || url.includes("fb.watch")) {
       const options = {
         method: "POST",
@@ -76,22 +91,29 @@ async function fetchRapidAPI(url) {
         data: { url }
       };
       response = await axios.request(options);
-      downloadUrl = response.data?.data?.download?.hd?.url
-                  || response.data?.data?.download?.sd?.url
-                  || null;
+      downloadUrl = response.data?.data?.download?.hd?.url 
+                    || response.data?.data?.download?.sd?.url 
+                    || null;
       thumbnail = response.data?.data?.video?.thumbnail_url || null;
       duration = response.data?.data?.video?.duration_ms || null;
+      title = response.data?.data?.video?.title || null;
 
+    // TikTok
     } else if (url.includes("tiktok.com")) {
       const fallbackUrl = `https://robotilab.xyz/download-api/tiktok/download?videoUrl=${encodeURIComponent(url)}`;
-      response = await axios.get(fallbackUrl);
-      downloadUrl = response.data?.downloadUrl || null;
-      thumbnail = response.data?.cover || null;
-      duration = response.data?.duration || null;
-      title = response.data?.description || null;
+      try {
+        response = await axios.get(fallbackUrl);
+        downloadUrl = response.data?.downloadUrl || null;
+        thumbnail = response.data?.cover || null;
+        duration = response.data?.duration || null;
+        title = response.data?.description || null;
+      } catch (err) {
+        console.log("TikTok fallback error:", err.message);
+      }
     }
 
     if (!downloadUrl) throw new Error("Download URL alınamadı");
+
     return { downloadUrl, title, thumbnail, duration };
 
   } catch (err) {
@@ -101,17 +123,13 @@ async function fetchRapidAPI(url) {
 }
 
 app.post("/api/download", async (req, res) => {
-  try {
-    const { url } = req.body;
-    if (!url) return res.status(400).json({ success: false, message: "URL gerekli" });
+  const { url } = req.body;
+  if (!url) return res.status(400).json({ success: false, message: "URL gerekli" });
 
-    const result = await fetchRapidAPI(url);
-    if (!result.downloadUrl) return res.status(500).json({ success: false, message: result.error || "Download alınamadı" });
+  const result = await fetchRapidAPI(url);
+  if (!result.downloadUrl) return res.status(500).json({ success: false, message: result.error || "Download alınamadı" });
 
-    res.json({ success: true, ...result });
-  } catch (err) {
-    res.status(500).json({ success: false, message: err.message });
-  }
+  res.json({ success: true, ...result });
 });
 
 app.listen(PORT, () => console.log(`Server running on port ${PORT}`));

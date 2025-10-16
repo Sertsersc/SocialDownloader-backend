@@ -11,10 +11,7 @@ function delay(ms) {
   return new Promise(resolve => setTimeout(resolve, ms));
 }
 
-// YouTube özel retry state
-const youtubeProgress = {};
-
-async function fetchVideoInfo(url) {
+async function fetchRapidAPI(url) {
   let response;
   let downloadUrl = null;
   let thumbnail = null;
@@ -42,43 +39,31 @@ async function fetchVideoInfo(url) {
         title = media.title || null;
       }
 
-    // YouTube
-    } else if (url.includes("youtube.com") || url.includes("youtu.be")) {
-      const videoId = url.includes("v=") ? url.split("v=")[1].split("&")[0] : url.split("/").pop();
-      youtubeProgress[videoId] = youtubeProgress[videoId] || { attempts: 0, ready: false, downloadUrl: null };
+    // DOWNLOAD endpoint (YouTube için hazır değilse bekletme yok, progress kullan)
+app.post("/api/download", async (req, res) => {
+  const { url } = req.body;
+  if (!url) return res.status(400).json({ success: false, message: "URL gerekli" });
 
-      if (!youtubeProgress[videoId].ready) {
-        const options = {
-          method: "GET",
-          url: `https://youtube-mp4-mp3-downloader.p.rapidapi.com/api/v1/download`,
-          params: {
-            id: videoId,
-            format: "720",
-            audioQuality: "128",
-            addInfo: "false"
-          },
-          headers: {
-            "x-rapidapi-key": RAPIDAPI_KEY,
-            "x-rapidapi-host": "youtube-mp4-mp3-downloader.p.rapidapi.com"
-          },
-          timeout: 15000
-        };
+  // YouTube kontrolü
+  if (url.includes("youtube.com") || url.includes("youtu.be")) {
+    const videoId = url.includes("v=") ? url.split("v=")[1].split("&")[0] : url.split("/").pop();
+    const progress = youtubeProgress[videoId];
 
-        try {
-          response = await axios.request(options);
-          downloadUrl = response.data?.downloadUrl || null;
-          thumbnail = response.data?.thumbnail || null;
-          title = response.data?.title || null;
-          duration = response.data?.duration || null;
+    if (!progress || !progress.ready) {
+      // Video hazır değilse 202 Accepted ile progress bilgisi dönebiliriz
+      return res.status(202).json({
+        success: false,
+        message: "YouTube video işleniyor. Progress endpoint’inden kontrol et.",
+        progress: progress?.attempts || 0
+      });
+    }
+  }
 
-          if (downloadUrl) youtubeProgress[videoId] = { attempts: youtubeProgress[videoId].attempts + 1, ready: true, downloadUrl };
-          else youtubeProgress[videoId].attempts += 1;
-        } catch (err) {
-          youtubeProgress[videoId].attempts += 1;
-        }
-      } else {
-        downloadUrl = youtubeProgress[videoId].downloadUrl;
-      }
+  const result = await fetchVideoInfo(url);
+  if (!result.downloadUrl) return res.status(500).json({ success: false, message: result.error || "Download alınamadı" });
+
+  res.json({ success: true, ...result });
+});
 
     // Facebook
     } else if (url.includes("facebook.com") || url.includes("fb.watch")) {
@@ -114,6 +99,8 @@ async function fetchVideoInfo(url) {
       }
     }
 
+    if (!downloadUrl) throw new Error("Download URL alınamadı");
+
     return { downloadUrl, title, thumbnail, duration };
 
   } catch (err) {
@@ -122,26 +109,11 @@ async function fetchVideoInfo(url) {
   }
 }
 
-// PROGRESS endpoint
-app.post("/api/progress", (req, res) => {
-  const { url } = req.body;
-  if (!url) return res.status(400).json({ success: false, message: "URL gerekli" });
-
-  if (url.includes("youtube.com") || url.includes("youtu.be")) {
-    const videoId = url.includes("v=") ? url.split("v=")[1].split("&")[0] : url.split("/").pop();
-    const progress = youtubeProgress[videoId] || { attempts: 0, ready: false };
-    return res.json({ success: true, ...progress });
-  } else {
-    return res.json({ success: true, ready: true });
-  }
-});
-
-// DOWNLOAD endpoint
 app.post("/api/download", async (req, res) => {
   const { url } = req.body;
   if (!url) return res.status(400).json({ success: false, message: "URL gerekli" });
 
-  const result = await fetchVideoInfo(url);
+  const result = await fetchRapidAPI(url);
   if (!result.downloadUrl) return res.status(500).json({ success: false, message: result.error || "Download alınamadı" });
 
   res.json({ success: true, ...result });

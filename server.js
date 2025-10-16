@@ -1,154 +1,150 @@
 import express from "express";
 import axios from "axios";
-import * as cheerio from "cheerio";
+import https from "https";
 
 const app = express();
 const PORT = process.env.PORT || 3000;
 
 app.use(express.json());
 
-// 🔥 Genel Downloader Endpoint
+// ortak axios instance
+const httpsAgent = new https.Agent({ rejectUnauthorized: false });
+const http = axios.create({
+  timeout: 20000,
+  httpsAgent,
+  headers: { "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)" },
+  validateStatus: () => true,
+});
+
+// Instagram handler
+async function instagramHandler(url) {
+  const payload = {
+    url,
+    ts: Date.now(),
+    _ts: Date.now() - 1000000,
+    _tsc: 0,
+    _s: "5abd8486beffde0d818244b0d2c75e0de07df2eb92b5bb2cae847eedb33ceec4"
+  };
+  const r = await http.post("https://sssinstagram.com/api/convert", payload, {
+    headers: {
+      "Accept": "application/json, text/plain, */*",
+      "Content-Type": "application/json",
+      "Origin": "https://sssinstagram.com",
+      "Referer": "https://sssinstagram.com/",
+    }
+  });
+  return r.data;
+}
+
+// Facebook via fdownloader
+async function facebookFdownHandler(url) {
+  const form = new URLSearchParams({
+    url
+  }).toString();
+  const r = await http.post("https://v3.fdownloader.net/api/ajaxSearch", form, {
+    headers: {
+      "Content-Type": "application/x-www-form-urlencoded; charset=UTF-8",
+      "Origin": "https://fdownloader.net",
+      "Referer": "https://fdownloader.net/"
+    }
+  });
+  return r.data;
+}
+
+// Facebook via fsave
+async function facebookFsaveHandler(url) {
+  const form = new URLSearchParams({
+    url
+  }).toString();
+  const r = await http.post("https://fsave.io/action.php?lang=en", form, {
+    headers: {
+      "Content-Type": "application/x-www-form-urlencoded",
+      "Origin": "https://fsave.io",
+      "Referer": "https://fsave.io/"
+    }
+  });
+  return r.data;
+}
+
+// TikTok handler
+async function tiktokHandler(url) {
+  const r = await http.post("https://savetik.app/requests", { url }, {
+    headers: {
+      "Content-Type": "application/json",
+      "Origin": "https://savetik.app",
+      "Referer": "https://savetik.app/"
+    }
+  });
+  return r.data;
+}
+
+// YouTube handler
+async function youtubeHandler(url) {
+  const payload = { url };
+  const r = await http.post("https://api.ssyoutube.com/api/convert", payload, {
+    headers: {
+      "Content-Type": "application/json",
+      "Origin": "https://ssyoutube.com",
+      "Referer": "https://ssyoutube.com/"
+    }
+  });
+  return r.data;
+}
+
+// Genel endpoint
 app.post("/api/download", async (req, res) => {
-  const { url } = req.body;
-  if (!url) return res.status(400).json({ error: "URL is required" });
-
   try {
-    // Platform belirleme
-    if (url.includes("tiktok.com")) return await handleTikTok(url, res);
-    if (url.includes("instagram.com")) return await handleInstagram(url, res);
-    if (url.includes("facebook.com") || url.includes("fb.watch")) return await handleFacebook(url, res);
-    if (url.includes("youtube.com") || url.includes("youtu.be")) return await handleYouTube(url, res);
+    const { url } = req.body;
+    if (!url) return res.status(400).json({ error: "URL is required" });
 
-    return res.status(400).json({ error: "Unsupported platform" });
+    let result;
+
+    if (url.includes("instagram.com")) {
+      result = await instagramHandler(url);
+      // parse result: result.url[0].url gibi
+      const mediaUrl = result.url?.[0]?.url;
+      return res.json({ platform: "instagram", mediaUrl, raw: result });
+    }
+    if (url.includes("facebook.com") || url.includes("fb.watch")) {
+      // deneyerek biriyle çalış
+      try {
+        const d = await facebookFdownHandler(url);
+        return res.json({ platform: "facebook", raw: d });
+      } catch (e) {
+        const d2 = await facebookFsaveHandler(url);
+        return res.json({ platform: "facebook", raw: d2 });
+      }
+    }
+    if (url.includes("tiktok.com")) {
+      result = await tiktokHandler(url);
+      return res.json({ platform: "tiktok", raw: result });
+    }
+    if (url.includes("youtube.com") || url.includes("youtu.be")) {
+      result = await youtubeHandler(url);
+      return res.json({ platform: "youtube", raw: result });
+    }
+
+    return res.status(400).json({ error: "Platform not supported" });
   } catch (err) {
-    console.error("General Downloader Error:", err.message);
-    res.status(500).json({ error: "Unexpected error", details: err.message });
+    console.error("Download API Error:", err.message);
+    return res.status(500).json({ error: err.message });
   }
 });
 
-
-// 🌀 TikTok Handler
-async function handleTikTok(url, res) {
+// Proxy stream endpoint (CORS / mixed-content çözümü)
+app.get("/proxy", async (req, res) => {
   try {
-    const api = `https://api.tiklydown.eu.org/api/download?url=${encodeURIComponent(url)}`;
-    const { data } = await axios.get(api);
-    res.json({
-      platform: "tiktok",
-      title: data.title || "TikTok Video",
-      thumbnail: data.cover,
-      media: [
-        { quality: "HD", url: data.video },
-        { quality: "Music", url: data.music },
-      ],
-    });
+    const { target } = req.query;
+    if (!target) return res.status(400).send("Missing target");
+
+    const response = await http.get(target, { responseType: "stream" });
+    const ct = response.headers["content-type"];
+    if (ct) res.setHeader("Content-Type", ct);
+    response.data.pipe(res);
   } catch (err) {
-    res.status(500).json({ error: "TikTok download failed", details: err.message });
+    console.error("Proxy error:", err.message);
+    res.status(500).send("Proxy error: " + err.message);
   }
-}
+});
 
-
-// 🌀 Instagram Handler
-async function handleInstagram(url, res) {
-  try {
-    const api = `https://igram.world/api/instagram?url=${encodeURIComponent(url)}`;
-    const { data } = await axios.get(api);
-    res.json({
-      platform: "instagram",
-      title: data?.title || "Instagram Media",
-      thumbnail: data?.thumbnail || null,
-      media: data?.media?.map((m) => ({
-        quality: m.quality || "default",
-        url: m.url,
-      })) || [],
-    });
-  } catch (err) {
-    res.status(500).json({ error: "Instagram download failed", details: err.message });
-  }
-}
-
-
-// 🌀 Facebook Handler (fdown.net)
-async function handleFacebook(url, res) {
-  try {
-    const response = await axios.post(
-      "https://fdown.net/download.php",
-      new URLSearchParams({ URLz: url }).toString(),
-      {
-        headers: {
-          "Content-Type": "application/x-www-form-urlencoded",
-          "User-Agent": "Mozilla/5.0",
-        },
-      }
-    );
-
-    const $ = cheerio.load(response.data);
-    const links = [];
-
-    $("a.btn.btn-download").each((_, el) => {
-      const href = $(el).attr("href");
-      const quality = $(el).text().trim();
-      if (href) links.push({ quality, url: href });
-    });
-
-    if (!links.length) throw new Error("No Facebook links found");
-
-    res.json({
-      platform: "facebook",
-      title: "Facebook Video",
-      thumbnail: null,
-      media: links,
-    });
-  } catch (err) {
-    res.status(500).json({ error: "Facebook download failed", details: err.message });
-  }
-}
-
-
-// 🌀 YouTube Handler (3 Katmanlı)
-async function handleYouTube(url, res) {
-  try {
-    const APIs = [
-      `https://api.vevioz.com/api/button/mp3/${encodeURIComponent(url)}`,
-      `https://api.vevioz.com/api/button/mp4/${encodeURIComponent(url)}`,
-      `https://yt-download.org/api/widgetv2?url=${encodeURIComponent(url)}`,
-    ];
-
-    let data = null;
-    for (const api of APIs) {
-      try {
-        const html = await axios.get(api, {
-          headers: { "User-Agent": "Mozilla/5.0" },
-          timeout: 8000,
-        });
-        if (html.status === 200 && html.data.includes("href")) {
-          data = html.data;
-          break;
-        }
-      } catch {}
-    }
-
-    if (!data) throw new Error("No valid YouTube API response");
-
-    const $ = cheerio.load(data);
-    const links = [];
-
-    $("a").each((_, el) => {
-      const href = $(el).attr("href");
-      const text = $(el).text().trim();
-      if (href && href.includes("https")) links.push({ quality: text, url: href });
-    });
-
-    if (!links.length) throw new Error("No YouTube links found");
-
-    res.json({
-      platform: "youtube",
-      title: "YouTube Video",
-      thumbnail: null,
-      media: links,
-    });
-  } catch (err) {
-    res.status(500).json({ error: "YouTube download failed", details: err.message });
-  }
-}
-
-app.listen(PORT, () => console.log(`✅ Social Media Downloader API v3 running on port ${PORT}`));
+app.listen(PORT, () => console.log(`Server running on port ${PORT}`));

@@ -38,23 +38,28 @@ async function fetchRapidAPI(url) {
       }
 
     // YouTube
-    } else if (url.includes("youtube.com") || url.includes("youtu.be")) {
-      const videoId = url.includes("v=") ? url.split("v=")[1].split("&")[0] : url.split("/").pop();
-      const options = {
-        method: "GET",
-        url: "https://youtube-media-downloader.p.rapidapi.com/v2/video/details",
-        params: { videoId, urlAccess: "normal", videos: "auto", audios: "auto" },
-        headers: {
-          "x-rapidapi-key": RAPIDAPI_KEY,
-          "x-rapidapi-host": "youtube-media-downloader.p.rapidapi.com"
-        }
-      };
-      response = await axios.request(options);
-      console.log("YouTube API response:", response.data);
-      const video = response.data?.videos?.[0];
-      downloadUrl = video?.url || null;
-      thumbnail = response.data?.thumbnail || null;
-      duration = response.data?.duration || null;
+} else if (url.includes("youtube.com") || url.includes("youtu.be")) {
+  // Video ID gerek yok, yeni API direkt link üzerinden çalışıyor
+  const options = {
+    method: "GET",
+    url: `https://youtube-video-fast-downloader-24-7.p.rapidapi.com/download_video/${url.split("v=")[1] || url.split("/").pop()}`,
+    params: { quality: "247" }, // HD seçimi
+    headers: {
+      "x-rapidapi-key": RAPIDAPI_KEY,
+      "x-rapidapi-host": "youtube-video-fast-downloader-24-7.p.rapidapi.com"
+    }
+  };
+
+  response = await axios.request(options);
+  console.log("YouTube API response:", response.data);
+
+  // API yapısına göre download URL ve meta
+  downloadUrl = response.data?.url || null;
+  title = response.data?.title || null;
+  thumbnail = response.data?.thumbnail || null;
+  duration = response.data?.duration || null;
+}
+
 
     // Facebook
     }  else if (url.includes("facebook.com") || url.includes("fb.watch")) {

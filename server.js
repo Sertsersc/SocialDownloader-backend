@@ -5,7 +5,7 @@ const app = express();
 app.use(express.json());
 
 const PORT = process.env.PORT || 3000;
-const RAPIDAPI_KEY = "178dd1391dmsh3c94f458f1e4554p143e7ajsna491fd1332ec";
+const RAPIDAPI_KEY = "178dd1391dmsh3c94f458f1e4554p143e7ajsna491fd1338ec";
 
 function delay(ms) {
   return new Promise(resolve => setTimeout(resolve, ms));
@@ -80,17 +80,13 @@ async function fetchRapidAPI(url) {
       duration = response.data?.data?.video?.duration_ms || null;
 
     // TikTok
-} else if (url.includes("tiktok.com")) {
-  // Direkt robotilab.xyz kullan
-  const fallbackUrl = `https://robotilab.xyz/download-api/tiktok/download?videoUrl=${encodeURIComponent(url)}`;
-  response = await axios.get(fallbackUrl);
-  downloadUrl = response.data?.downloadUrl || null;
-  thumbnail = response.data?.cover || null;
-  duration = response.data?.duration || null;
-}
-      } catch (errTikTok) {
-        console.error("TikTok fallback error:", errTikTok.message);
-      }
+    } else if (url.includes("tiktok.com")) {
+      const fallbackUrl = `https://robotilab.xyz/download-api/tiktok/download?videoUrl=${encodeURIComponent(url)}`;
+      response = await axios.get(fallbackUrl);
+      downloadUrl = response.data?.downloadUrl || null;
+      thumbnail = response.data?.cover || null;
+      duration = response.data?.duration || null;
+      title = response.data?.description || null;
     }
 
     if (!downloadUrl) throw new Error("Download URL alınamadı");

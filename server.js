@@ -5,9 +5,12 @@ const app = express();
 app.use(express.json());
 
 const PORT = process.env.PORT || 3000;
-
-// RapidAPI key
 const RAPIDAPI_KEY = "178dd1391dmsh3c94f458f1e4554p143e7ajsna491fd1332ec";
+
+// Helper: Delay fonksiyonu
+function delay(ms) {
+  return new Promise(resolve => setTimeout(resolve, ms));
+}
 
 // Helper: RapidAPI çağrısı
 async function fetchRapidAPI(url) {
@@ -16,6 +19,7 @@ async function fetchRapidAPI(url) {
     let downloadUrl = null;
     let thumbnail = null;
     let duration = null;
+    let title = null;
 
     if (url.includes("instagram.com")) {
       const options = {
@@ -29,7 +33,6 @@ async function fetchRapidAPI(url) {
       };
       response = await axios.request(options);
       console.log("Instagram API response:", response.data);
-
       const media = response.data?.media?.[0];
       if (media) {
         downloadUrl = media.url || null;
@@ -37,25 +40,33 @@ async function fetchRapidAPI(url) {
         duration = media.duration || null;
       }
 
+    // YouTube (retry mekanizmalı)
     } else if (url.includes("youtube.com") || url.includes("youtu.be")) {
       const videoId = url.includes("v=") ? url.split("v=")[1].split("&")[0] : url.split("/").pop();
       const options = {
         method: "GET",
         url: `https://youtube-video-fast-downloader-24-7.p.rapidapi.com/download_video/${videoId}`,
-        params: { quality: "247" }, // HD seçimi
+        params: { quality: "247" },
         headers: {
           "x-rapidapi-key": RAPIDAPI_KEY,
           "x-rapidapi-host": "youtube-video-fast-downloader-24-7.p.rapidapi.com"
         }
       };
 
-      response = await axios.request(options);
-      console.log("YouTube API response:", response.data);
+      // Retry mantığı: max 5 deneme, 5 saniye aralık
+      for (let i = 0; i < 5; i++) {
+        response = await axios.request(options);
+        console.log(`YouTube API response attempt ${i + 1}:`, response.data);
+        downloadUrl = response.data?.file || response.data?.reserved_file || null;
+        title = response.data?.title || null;
+        thumbnail = response.data?.thumbnail || null;
+        duration = response.data?.duration || null;
 
-      downloadUrl = response.data?.url || null;
-      thumbnail = response.data?.thumbnail || null;
-      duration = response.data?.duration || null;
+        if (downloadUrl) break; // hazırsa çık
+        await delay(5000); // 5 saniye bekle
+      }
 
+    // Facebook
     } else if (url.includes("facebook.com") || url.includes("fb.watch")) {
       const options = {
         method: "POST",
@@ -69,13 +80,13 @@ async function fetchRapidAPI(url) {
       };
       response = await axios.request(options);
       console.log("Facebook API response:", response.data);
-
       downloadUrl = response.data?.data?.download?.hd?.url 
                     || response.data?.data?.download?.sd?.url 
                     || null;
       thumbnail = response.data?.data?.video?.thumbnail_url || null;
       duration = response.data?.data?.video?.duration_ms || null;
 
+    // TikTok
     } else if (url.includes("tiktok.com")) {
       const options = {
         method: "GET",
@@ -88,20 +99,16 @@ async function fetchRapidAPI(url) {
       };
       response = await axios.request(options);
       console.log("TikTok API response:", response.data);
-
       downloadUrl = response.data?.video?.download || response.data?.downloadUrl || null;
       thumbnail = response.data?.video?.thumbnail || null;
       duration = response.data?.video?.duration || null;
-
-    } else {
-      throw new Error("Platform desteklenmiyor");
     }
 
     if (!downloadUrl) {
       throw new Error("Download URL alınamadı");
     }
 
-    return { downloadUrl, thumbnail, duration };
+    return { downloadUrl, title, thumbnail, duration };
 
   } catch (err) {
     console.error("RapidAPI error:", err.message);

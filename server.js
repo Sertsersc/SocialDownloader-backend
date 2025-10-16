@@ -1,149 +1,92 @@
 import express from "express";
 import axios from "axios";
-import https from "https";
 
 const app = express();
 const PORT = process.env.PORT || 3000;
 
 app.use(express.json());
 
-// ortak axios instance
-const httpsAgent = new https.Agent({ rejectUnauthorized: false });
-const http = axios.create({
-  timeout: 20000,
-  httpsAgent,
-  headers: { "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)" },
-  validateStatus: () => true,
-});
+const RAPIDAPI_KEY = "178dd1391dmsh3c94f458f1e4554p143e7ajsna491fd1332ec";
 
-// Instagram handler
-async function instagramHandler(url) {
-  const payload = {
-    url,
-    ts: Date.now(),
-    _ts: Date.now() - 1000000,
-    _tsc: 0,
-    _s: "5abd8486beffde0d818244b0d2c75e0de07df2eb92b5bb2cae847eedb33ceec4"
-  };
-  const r = await http.post("https://sssinstagram.com/api/convert", payload, {
-    headers: {
-      "Accept": "application/json, text/plain, */*",
-      "Content-Type": "application/json",
-      "Origin": "https://sssinstagram.com",
-      "Referer": "https://sssinstagram.com/",
-    }
-  });
-  return r.data;
-}
+// Genel fetch fonksiyonu
+async function fetchFromRapidAPI(platform, urlOrId) {
+  let options;
 
-// Facebook via fdownloader
-async function facebookFdownHandler(url) {
-  const form = new URLSearchParams({
-    url
-  }).toString();
-  const r = await http.post("https://v3.fdownloader.net/api/ajaxSearch", form, {
-    headers: {
-      "Content-Type": "application/x-www-form-urlencoded; charset=UTF-8",
-      "Origin": "https://fdownloader.net",
-      "Referer": "https://fdownloader.net/"
-    }
-  });
-  return r.data;
-}
+  switch (platform.toLowerCase()) {
+    case "instagram":
+      options = {
+        method: "GET",
+        url: "https://instagram-downloader-download-instagram-stories-videos4.p.rapidapi.com/convert",
+        params: { url: urlOrId },
+        headers: {
+          "x-rapidapi-key": RAPIDAPI_KEY,
+          "x-rapidapi-host": "instagram-downloader-download-instagram-stories-videos4.p.rapidapi.com"
+        }
+      };
+      break;
 
-// Facebook via fsave
-async function facebookFsaveHandler(url) {
-  const form = new URLSearchParams({
-    url
-  }).toString();
-  const r = await http.post("https://fsave.io/action.php?lang=en", form, {
-    headers: {
-      "Content-Type": "application/x-www-form-urlencoded",
-      "Origin": "https://fsave.io",
-      "Referer": "https://fsave.io/"
-    }
-  });
-  return r.data;
-}
+    case "youtube":
+      options = {
+        method: "GET",
+        url: "https://youtube-media-downloader.p.rapidapi.com/v2/video/details",
+        params: {
+          videoId: urlOrId,
+          urlAccess: "normal",
+          videos: "auto",
+          audios: "auto"
+        },
+        headers: {
+          "x-rapidapi-key": RAPIDAPI_KEY,
+          "x-rapidapi-host": "youtube-media-downloader.p.rapidapi.com"
+        }
+      };
+      break;
 
-// TikTok handler
-async function tiktokHandler(url) {
-  const r = await http.post("https://savetik.app/requests", { url }, {
-    headers: {
-      "Content-Type": "application/json",
-      "Origin": "https://savetik.app",
-      "Referer": "https://savetik.app/"
-    }
-  });
-  return r.data;
-}
+    case "facebook":
+      options = {
+        method: "POST",
+        url: "https://fdown1.p.rapidapi.com/download",
+        headers: {
+          "x-rapidapi-key": RAPIDAPI_KEY,
+          "x-rapidapi-host": "fdown1.p.rapidapi.com",
+          "Content-Type": "application/json"
+        },
+        data: { url: urlOrId }
+      };
+      break;
 
-// YouTube handler
-async function youtubeHandler(url) {
-  const payload = { url };
-  const r = await http.post("https://api.ssyoutube.com/api/convert", payload, {
-    headers: {
-      "Content-Type": "application/json",
-      "Origin": "https://ssyoutube.com",
-      "Referer": "https://ssyoutube.com/"
-    }
-  });
-  return r.data;
-}
+    case "tiktok":
+      options = {
+        method: "GET",
+        url: "https://tiktok-video-downloader-api.p.rapidapi.com/media",
+        params: { videoUrl: urlOrId },
+        headers: {
+          "x-rapidapi-key": RAPIDAPI_KEY,
+          "x-rapidapi-host": "tiktok-video-downloader-api.p.rapidapi.com"
+        }
+      };
+      break;
 
-// Genel endpoint
-app.post("/api/download", async (req, res) => {
-  try {
-    const { url } = req.body;
-    if (!url) return res.status(400).json({ error: "URL is required" });
-
-    let result;
-
-    if (url.includes("instagram.com")) {
-      result = await instagramHandler(url);
-      // parse result: result.url[0].url gibi
-      const mediaUrl = result.url?.[0]?.url;
-      return res.json({ platform: "instagram", mediaUrl, raw: result });
-    }
-    if (url.includes("facebook.com") || url.includes("fb.watch")) {
-      // deneyerek biriyle çalış
-      try {
-        const d = await facebookFdownHandler(url);
-        return res.json({ platform: "facebook", raw: d });
-      } catch (e) {
-        const d2 = await facebookFsaveHandler(url);
-        return res.json({ platform: "facebook", raw: d2 });
-      }
-    }
-    if (url.includes("tiktok.com")) {
-      result = await tiktokHandler(url);
-      return res.json({ platform: "tiktok", raw: result });
-    }
-    if (url.includes("youtube.com") || url.includes("youtu.be")) {
-      result = await youtubeHandler(url);
-      return res.json({ platform: "youtube", raw: result });
-    }
-
-    return res.status(400).json({ error: "Platform not supported" });
-  } catch (err) {
-    console.error("Download API Error:", err.message);
-    return res.status(500).json({ error: err.message });
+    default:
+      throw new Error("Desteklenmeyen platform: " + platform);
   }
-});
 
-// Proxy stream endpoint (CORS / mixed-content çözümü)
-app.get("/proxy", async (req, res) => {
+  const response = await axios.request(options);
+  return response.data;
+}
+
+// Endpoint
+app.post("/api/download", async (req, res) => {
+  const { platform, urlOrId } = req.body;
+  if (!platform || !urlOrId)
+    return res.status(400).json({ error: "Platform ve urlOrId gerekli" });
+
   try {
-    const { target } = req.query;
-    if (!target) return res.status(400).send("Missing target");
-
-    const response = await http.get(target, { responseType: "stream" });
-    const ct = response.headers["content-type"];
-    if (ct) res.setHeader("Content-Type", ct);
-    response.data.pipe(res);
+    const data = await fetchFromRapidAPI(platform, urlOrId);
+    res.json({ platform, data });
   } catch (err) {
-    console.error("Proxy error:", err.message);
-    res.status(500).send("Proxy error: " + err.message);
+    console.error("API Hatası:", err.message);
+    res.status(500).json({ error: err.message });
   }
 });
 

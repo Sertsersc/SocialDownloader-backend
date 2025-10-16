@@ -19,7 +19,6 @@ async function fetchRapidAPI(url) {
     let duration = null;
     let title = null;
 
-    // Instagram
     if (url.includes("instagram.com")) {
       const options = {
         method: "GET",
@@ -38,39 +37,33 @@ async function fetchRapidAPI(url) {
         duration = media.duration || null;
       }
 
-  } else if (url.includes("youtube.com") || url.includes("youtu.be")) {
-  const videoId = url.includes("v=") ? url.split("v=")[1].split("&")[0] : url.split("/").pop();
-  const options = {
-    method: "GET",
-    url: `https://youtube-video-fast-downloader-24-7.p.rapidapi.com/download_video/${videoId}`,
-    params: { quality: "247" },
-    headers: {
-      "x-rapidapi-key": RAPIDAPI_KEY,
-      "x-rapidapi-host": "youtube-video-fast-downloader-24-7.p.rapidapi.com"
-    },
-    timeout: 15000 // 15 saniye
-  };
+    } else if (url.includes("youtube.com") || url.includes("youtu.be")) {
+      const videoId = url.includes("v=") ? url.split("v=")[1].split("&")[0] : url.split("/").pop();
+      const options = {
+        method: "GET",
+        url: `https://youtube-video-fast-downloader-24-7.p.rapidapi.com/download_video/${videoId}`,
+        params: { quality: "247" },
+        headers: {
+          "x-rapidapi-key": RAPIDAPI_KEY,
+          "x-rapidapi-host": "youtube-video-fast-downloader-24-7.p.rapidapi.com"
+        },
+        timeout: 15000
+      };
 
-  for (let i = 0; i < 5; i++) {
-    try {
-      response = await axios.request(options);
-      downloadUrl = response.data?.file || response.data?.reserved_file || null;
-      title = response.data?.title || null;
-      thumbnail = response.data?.thumbnail || null;
-      duration = response.data?.duration || null;
+      for (let i = 0; i < 5; i++) {
+        try {
+          response = await axios.request(options);
+          downloadUrl = response.data?.file || response.data?.reserved_file || null;
+          title = response.data?.title || null;
+          thumbnail = response.data?.thumbnail || null;
+          duration = response.data?.duration || null;
+          if (downloadUrl) break;
+        } catch (err) {
+          console.log(`YouTube attempt ${i+1} failed: ${err.message}`);
+        }
+        await delay(10000);
+      }
 
-      console.log(`YouTube attempt ${i+1}:`, downloadUrl ? "SUCCESS" : "WAITING FILE");
-
-      if (downloadUrl) break;
-    } catch (err) {
-      console.log(`YouTube attempt ${i+1} failed: ${err.message}`);
-    }
-    await delay(10000); // 10 saniye bekle
-  }
-}
-
-
-    // Facebook
     } else if (url.includes("facebook.com") || url.includes("fb.watch")) {
       const options = {
         method: "POST",
@@ -83,13 +76,12 @@ async function fetchRapidAPI(url) {
         data: { url }
       };
       response = await axios.request(options);
-      downloadUrl = response.data?.data?.download?.hd?.url 
-                    || response.data?.data?.download?.sd?.url 
-                    || null;
+      downloadUrl = response.data?.data?.download?.hd?.url
+                  || response.data?.data?.download?.sd?.url
+                  || null;
       thumbnail = response.data?.data?.video?.thumbnail_url || null;
       duration = response.data?.data?.video?.duration_ms || null;
 
-    // TikTok
     } else if (url.includes("tiktok.com")) {
       const fallbackUrl = `https://robotilab.xyz/download-api/tiktok/download?videoUrl=${encodeURIComponent(url)}`;
       response = await axios.get(fallbackUrl);

@@ -5,14 +5,12 @@ const app = express();
 app.use(express.json());
 
 const PORT = process.env.PORT || 3000;
+const RAPIDAPI_KEY = "178dd1391dmsh3c94f458f1e4554p143e7ajsna491fd1338ec";
 
-// RapidAPI key
-const RAPIDAPI_KEY = "178dd1391dmsh3c94f458f1e4554p143e7ajsna491fd1332ec";
+function delay(ms) {
+  return new Promise(resolve => setTimeout(resolve, ms));
+}
 
-// Delay helper
-const delay = (ms) => new Promise(resolve => setTimeout(resolve, ms));
-
-// Helper: RapidAPI çağrısı
 async function fetchRapidAPI(url) {
   try {
     let response;
@@ -21,6 +19,7 @@ async function fetchRapidAPI(url) {
     let duration = null;
     let title = null;
 
+    // Instagram
     if (url.includes("instagram.com")) {
       const options = {
         method: "GET",
@@ -32,8 +31,6 @@ async function fetchRapidAPI(url) {
         }
       };
       response = await axios.request(options);
-      console.log("Instagram API response:", response.data);
-
       const media = response.data?.media?.[0];
       if (media) {
         downloadUrl = media.url || null;
@@ -41,38 +38,39 @@ async function fetchRapidAPI(url) {
         duration = media.duration || null;
       }
 
-    } else if (url.includes("youtube.com") || url.includes("youtu.be")) {
-      // Video ID gerek yok, yeni API direkt link üzerinden çalışıyor
-      const videoId = url.includes("v=") ? url.split("v=")[1].split("&")[0] : url.split("/").pop();
-      const options = {
-        method: "GET",
-        url: `https://youtube-video-fast-downloader-24-7.p.rapidapi.com/download_video/${videoId}`,
-        params: { quality: "247" }, // HD seçimi
-        headers: {
-          "x-rapidapi-key": RAPIDAPI_KEY,
-          "x-rapidapi-host": "youtube-video-fast-downloader-24-7.p.rapidapi.com"
-        }
-      };
+  } else if (url.includes("youtube.com") || url.includes("youtu.be")) {
+  const videoId = url.includes("v=") ? url.split("v=")[1].split("&")[0] : url.split("/").pop();
+  const options = {
+    method: "GET",
+    url: `https://youtube-video-fast-downloader-24-7.p.rapidapi.com/download_video/${videoId}`,
+    params: { quality: "247" },
+    headers: {
+      "x-rapidapi-key": RAPIDAPI_KEY,
+      "x-rapidapi-host": "youtube-video-fast-downloader-24-7.p.rapidapi.com"
+    },
+    timeout: 15000 // 15 saniye
+  };
 
-      const MAX_WAIT = 600000; // 10 dakika
-      const RETRY_INTERVAL = 5000; // 5 saniye
-      let elapsed = 0;
+  for (let i = 0; i < 5; i++) {
+    try {
+      response = await axios.request(options);
+      downloadUrl = response.data?.file || response.data?.reserved_file || null;
+      title = response.data?.title || null;
+      thumbnail = response.data?.thumbnail || null;
+      duration = response.data?.duration || null;
 
-      while (elapsed < MAX_WAIT) {
-        response = await axios.request(options);
-        console.log(`YouTube API response attempt ${elapsed / RETRY_INTERVAL + 1}:`, response.data);
-        downloadUrl = response.data?.file || response.data?.reserved_file || null;
-        title = response.data?.title || null;
-        thumbnail = response.data?.thumbnail || null;
-        duration = response.data?.duration || null;
+      console.log(`YouTube attempt ${i+1}:`, downloadUrl ? "SUCCESS" : "WAITING FILE");
 
-        if (downloadUrl) break; // Dosya hazır
-        await delay(RETRY_INTERVAL);
-        elapsed += RETRY_INTERVAL;
-      }
+      if (downloadUrl) break;
+    } catch (err) {
+      console.log(`YouTube attempt ${i+1} failed: ${err.message}`);
+    }
+    await delay(10000); // 10 saniye bekle
+  }
+}
 
-      if (!downloadUrl) throw new Error("YouTube video hazır değil veya erişilemedi");
 
+    // Facebook
     } else if (url.includes("facebook.com") || url.includes("fb.watch")) {
       const options = {
         method: "POST",
@@ -85,35 +83,23 @@ async function fetchRapidAPI(url) {
         data: { url }
       };
       response = await axios.request(options);
-      console.log("Facebook API response:", response.data);
-
       downloadUrl = response.data?.data?.download?.hd?.url 
                     || response.data?.data?.download?.sd?.url 
                     || null;
       thumbnail = response.data?.data?.video?.thumbnail_url || null;
       duration = response.data?.data?.video?.duration_ms || null;
 
+    // TikTok
     } else if (url.includes("tiktok.com")) {
-      const options = {
-        method: "GET",
-        url: "https://tiktok-video-downloader-api.p.rapidapi.com/media",
-        params: { videoUrl: url },
-        headers: {
-          "x-rapidapi-key": RAPIDAPI_KEY,
-          "x-rapidapi-host": "tiktok-video-downloader-api.p.rapidapi.com"
-        }
-      };
-      response = await axios.request(options);
-      console.log("TikTok API response:", response.data);
-      downloadUrl = response.data?.video?.download || response.data?.downloadUrl || null;
-      thumbnail = response.data?.video?.thumbnail || null;
-      duration = response.data?.video?.duration || null;
+      const fallbackUrl = `https://robotilab.xyz/download-api/tiktok/download?videoUrl=${encodeURIComponent(url)}`;
+      response = await axios.get(fallbackUrl);
+      downloadUrl = response.data?.downloadUrl || null;
+      thumbnail = response.data?.cover || null;
+      duration = response.data?.duration || null;
+      title = response.data?.description || null;
     }
 
-    if (!downloadUrl) {
-      throw new Error("Download URL alınamadı");
-    }
-
+    if (!downloadUrl) throw new Error("Download URL alınamadı");
     return { downloadUrl, title, thumbnail, duration };
 
   } catch (err) {
@@ -122,16 +108,13 @@ async function fetchRapidAPI(url) {
   }
 }
 
-// Tek endpoint
 app.post("/api/download", async (req, res) => {
   try {
     const { url } = req.body;
     if (!url) return res.status(400).json({ success: false, message: "URL gerekli" });
 
     const result = await fetchRapidAPI(url);
-    if (!result.downloadUrl) {
-      return res.status(500).json({ success: false, message: result.error || "Download alınamadı" });
-    }
+    if (!result.downloadUrl) return res.status(500).json({ success: false, message: result.error || "Download alınamadı" });
 
     res.json({ success: true, ...result });
   } catch (err) {

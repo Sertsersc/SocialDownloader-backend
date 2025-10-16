@@ -79,34 +79,15 @@ async function fetchRapidAPI(url) {
       thumbnail = response.data?.data?.video?.thumbnail_url || null;
       duration = response.data?.data?.video?.duration_ms || null;
 
-    // TikTok (fallback API ile)
-    } else if (url.includes("tiktok.com")) {
-      try {
-        const options1 = {
-          method: "GET",
-          url: "https://tiktok-video-downloader-api.p.rapidapi.com/media",
-          params: { videoUrl: url },
-          headers: {
-            "x-rapidapi-key": RAPIDAPI_KEY,
-            "x-rapidapi-host": "tiktok-video-downloader-api.p.rapidapi.com"
-          }
-        };
-        response = await axios.request(options1);
-        downloadUrl = response.data?.video?.download || response.data?.downloadUrl || null;
-        thumbnail = response.data?.video?.thumbnail || null;
-        duration = response.data?.video?.duration || null;
-
-        // Eğer hala yoksa fallback
-        if (!downloadUrl) {
-          const options2 = {
-            method: "GET",
-            url: "https://robotilab.xyz/download-api/tiktok/download",
-            params: { videoUrl: url }
-          };
-          response = await axios.request(options2);
-          downloadUrl = response.data?.downloadUrl || null;
-          thumbnail = response.data?.cover || null;
-        }
+    // TikTok
+} else if (url.includes("tiktok.com")) {
+  // Direkt robotilab.xyz kullan
+  const fallbackUrl = `https://robotilab.xyz/download-api/tiktok/download?videoUrl=${encodeURIComponent(url)}`;
+  response = await axios.get(fallbackUrl);
+  downloadUrl = response.data?.downloadUrl || null;
+  thumbnail = response.data?.cover || null;
+  duration = response.data?.duration || null;
+}
       } catch (errTikTok) {
         console.error("TikTok fallback error:", errTikTok.message);
       }

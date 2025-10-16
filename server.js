@@ -2,48 +2,47 @@ import express from "express";
 import axios from "axios";
 
 const app = express();
-const PORT = process.env.PORT || 3000;
-
 app.use(express.json());
 
+const PORT = process.env.PORT || 3000;
+
+// RapidAPI key ve hostlar
 const RAPIDAPI_KEY = "178dd1391dmsh3c94f458f1e4554p143e7ajsna491fd1332ec";
 
-// Genel fetch fonksiyonu
-async function fetchFromRapidAPI(platform, urlOrId) {
-  let options;
-
-  switch (platform.toLowerCase()) {
-    case "instagram":
-      options = {
+// Helper: RapidAPI çağrısı
+async function fetchRapidAPI(url) {
+  try {
+    if (url.includes("instagram.com")) {
+      const options = {
         method: "GET",
         url: "https://instagram-downloader-download-instagram-stories-videos4.p.rapidapi.com/convert",
-        params: { url: urlOrId },
+        params: { url },
         headers: {
           "x-rapidapi-key": RAPIDAPI_KEY,
           "x-rapidapi-host": "instagram-downloader-download-instagram-stories-videos4.p.rapidapi.com"
         }
       };
-      break;
+      const response = await axios.request(options);
+      const mediaUrl = response.data?.url?.[0]?.url || null;
+      return { downloadUrl: mediaUrl };
 
-    case "youtube":
-      options = {
+    } else if (url.includes("youtube.com") || url.includes("youtu.be")) {
+      const videoId = url.split("v=")[1]?.split("&")[0] ?: url.split("/").last()
+      const options = {
         method: "GET",
         url: "https://youtube-media-downloader.p.rapidapi.com/v2/video/details",
-        params: {
-          videoId: urlOrId,
-          urlAccess: "normal",
-          videos: "auto",
-          audios: "auto"
-        },
+        params: { videoId, urlAccess: "normal", videos: "auto", audios: "auto" },
         headers: {
           "x-rapidapi-key": RAPIDAPI_KEY,
           "x-rapidapi-host": "youtube-media-downloader.p.rapidapi.com"
         }
       };
-      break;
+      const response = await axios.request(options);
+      const downloadUrl = response.data?.videos?.[0]?.url || null;
+      return { downloadUrl };
 
-    case "facebook":
-      options = {
+    } else if (url.includes("facebook.com") || url.includes("fb.watch")) {
+      const options = {
         method: "POST",
         url: "https://fdown1.p.rapidapi.com/download",
         headers: {
@@ -51,42 +50,48 @@ async function fetchFromRapidAPI(platform, urlOrId) {
           "x-rapidapi-host": "fdown1.p.rapidapi.com",
           "Content-Type": "application/json"
         },
-        data: { url: urlOrId }
+        data: { url }
       };
-      break;
+      const response = await axios.request(options);
+      const downloadUrl = response.data?.url || null;
+      return { downloadUrl };
 
-    case "tiktok":
-      options = {
+    } else if (url.includes("tiktok.com")) {
+      const options = {
         method: "GET",
         url: "https://tiktok-video-downloader-api.p.rapidapi.com/media",
-        params: { videoUrl: urlOrId },
+        params: { videoUrl: url },
         headers: {
           "x-rapidapi-key": RAPIDAPI_KEY,
           "x-rapidapi-host": "tiktok-video-downloader-api.p.rapidapi.com"
         }
       };
-      break;
+      const response = await axios.request(options);
+      const downloadUrl = response.data?.video?.download || null;
+      return { downloadUrl };
+    }
 
-    default:
-      throw new Error("Desteklenmeyen platform: " + platform);
+    throw new Error("Platform desteklenmiyor");
+  } catch (err) {
+    console.error(err.message);
+    return { downloadUrl: null, error: err.message };
   }
-
-  const response = await axios.request(options);
-  return response.data;
 }
 
-// Endpoint
+// Tek endpoint: POST /api/download
 app.post("/api/download", async (req, res) => {
-  const { platform, urlOrId } = req.body;
-  if (!platform || !urlOrId)
-    return res.status(400).json({ error: "Platform ve urlOrId gerekli" });
-
   try {
-    const data = await fetchFromRapidAPI(platform, urlOrId);
-    res.json({ platform, data });
+    const { url } = req.body;
+    if (!url) return res.status(400).json({ success: false, message: "URL gerekli" });
+
+    const result = await fetchRapidAPI(url);
+    if (!result.downloadUrl) {
+      return res.status(500).json({ success: false, message: result.error || "Download alınamadı" });
+    }
+
+    res.json({ success: true, downloadUrl: result.downloadUrl });
   } catch (err) {
-    console.error("API Hatası:", err.message);
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ success: false, message: err.message });
   }
 });
 

@@ -12,11 +12,9 @@ const RAPIDAPI_KEY = "178dd1391dmsh3c94f458f1e4554p143e7ajsna491fd1332ec";
 // Helper: RapidAPI çağrısı
 async function fetchRapidAPI(url) {
   try {
-    let response;
-    let downloadUrl = null;
-    let thumbnail = null;
-    let duration = null;
+    let response, downloadUrl = null, thumbnail = null, duration = null;
 
+    // Instagram
     if (url.includes("instagram.com")) {
       const options = {
         method: "GET",
@@ -29,20 +27,18 @@ async function fetchRapidAPI(url) {
       };
       response = await axios.request(options);
       console.log("Instagram API response:", response.data);
-
-      const media = response.data?.media?.[0];
-      if (media) {
-        downloadUrl = media.url || null;
-        thumbnail = media.thumbnail || null;
-        duration = media.duration || null;
+      if (Array.isArray(response.data?.media) && response.data.media.length > 0) {
+        downloadUrl = response.data.media[0].url;
+        thumbnail = response.data.media[0].thumbnail;
+        duration = response.data.media[0].duration || null;
       }
 
+    // YouTube
     } else if (url.includes("youtube.com") || url.includes("youtu.be")) {
-      const videoId = url.includes("v=") ? url.split("v=")[1].split("&")[0] : url.split("/").pop();
       const options = {
         method: "GET",
         url: "https://youtube-media-downloader.p.rapidapi.com/v2/video/details",
-        params: { videoId, urlAccess: "normal", videos: "auto", audios: "auto" },
+        params: { url, videos: "auto", audios: "auto", urlAccess: "normal" },
         headers: {
           "x-rapidapi-key": RAPIDAPI_KEY,
           "x-rapidapi-host": "youtube-media-downloader.p.rapidapi.com"
@@ -50,7 +46,6 @@ async function fetchRapidAPI(url) {
       };
       response = await axios.request(options);
       console.log("YouTube API response:", response.data);
-
       const video = response.data?.videos?.[0];
       if (video) {
         downloadUrl = video.url || null;
@@ -58,6 +53,7 @@ async function fetchRapidAPI(url) {
         duration = response.data?.duration || null;
       }
 
+    // Facebook
     } else if (url.includes("facebook.com") || url.includes("fb.watch")) {
       const options = {
         method: "POST",
@@ -71,19 +67,16 @@ async function fetchRapidAPI(url) {
       };
       response = await axios.request(options);
       console.log("Facebook API response:", response.data);
-
-      // HD varsa onu al, yoksa SD
-      downloadUrl = response.data?.data?.download?.hd?.url 
-                    || response.data?.data?.download?.sd?.url 
-                    || null;
+      downloadUrl = response.data?.url || null;
       thumbnail = response.data?.data?.video?.thumbnail_url || null;
       duration = response.data?.data?.video?.duration_ms || null;
 
+    // TikTok
     } else if (url.includes("tiktok.com")) {
       const options = {
         method: "GET",
         url: "https://tiktok-video-downloader-api.p.rapidapi.com/media",
-        params: { videoUrl: url },
+        params: { video_url: url },
         headers: {
           "x-rapidapi-key": RAPIDAPI_KEY,
           "x-rapidapi-host": "tiktok-video-downloader-api.p.rapidapi.com"
@@ -91,13 +84,10 @@ async function fetchRapidAPI(url) {
       };
       response = await axios.request(options);
       console.log("TikTok API response:", response.data);
-
       const video = response.data?.video;
       downloadUrl = video?.download || response.data?.downloadUrl || null;
       thumbnail = video?.thumbnail || null;
       duration = video?.duration || null;
-    } else {
-      throw new Error("Platform desteklenmiyor");
     }
 
     if (!downloadUrl) {
@@ -105,6 +95,7 @@ async function fetchRapidAPI(url) {
     }
 
     return { downloadUrl, thumbnail, duration };
+
   } catch (err) {
     console.error("RapidAPI error:", err.message);
     return { downloadUrl: null, thumbnail: null, duration: null, error: err.message };

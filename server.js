@@ -6,7 +6,7 @@ app.use(express.json());
 
 const PORT = process.env.PORT || 3000;
 
-// RapidAPI key ve hostlar
+// RapidAPI key
 const RAPIDAPI_KEY = "178dd1391dmsh3c94f458f1e4554p143e7ajsna491fd1332ec";
 
 // Helper: RapidAPI çağrısı
@@ -26,24 +26,16 @@ async function fetchRapidAPI(url) {
       const mediaUrl = response.data?.url?.[0]?.url || null;
       return { downloadUrl: mediaUrl };
 
-    } // YouTube kısmı
-else if (url.includes("youtube.com") || url.includes("youtu.be")) {
-  const videoId = url.includes("v=") ? url.split("v=")[1].split("&")[0] : url.split("/").pop();
-  
-  const options = {
-    method: "GET",
-    url: "https://youtube-media-downloader.p.rapidapi.com/v2/video/details",
-    params: { videoId, urlAccess: "normal", videos: "auto", audios: "auto" },
-    headers: {
-      "x-rapidapi-key": RAPIDAPI_KEY,
-      "x-rapidapi-host": "youtube-media-downloader.p.rapidapi.com"
-    }
-  };
-  const response = await axios.request(options);
-  const downloadUrl = response.data?.videos?.[0]?.url || null;
-  return { downloadUrl };
-}
-
+    } else if (url.includes("youtube.com") || url.includes("youtu.be")) {
+      const videoId = url.includes("v=") ? url.split("v=")[1].split("&")[0] : url.split("/").pop();
+      const options = {
+        method: "GET",
+        url: "https://youtube-media-downloader.p.rapidapi.com/v2/video/details",
+        params: { videoId, urlAccess: "normal", videos: "auto", audios: "auto" },
+        headers: {
+          "x-rapidapi-key": RAPIDAPI_KEY,
+          "x-rapidapi-host": "youtube-media-downloader.p.rapidapi.com"
+        }
       };
       const response = await axios.request(options);
       const downloadUrl = response.data?.videos?.[0]?.url || null;
@@ -86,7 +78,7 @@ else if (url.includes("youtube.com") || url.includes("youtu.be")) {
   }
 }
 
-// Tek endpoint: POST /api/download
+// Tek endpoint
 app.post("/api/download", async (req, res) => {
   try {
     const { url } = req.body;

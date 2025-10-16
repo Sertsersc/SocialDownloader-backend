@@ -39,7 +39,7 @@ app.get("/health", (req, res) => {
   res.json({ status: "OK", uptime: Math.floor(process.uptime()) });
 });
 
-// YouTube özel endpoint
+// YouTube özel endpoint - SYNC (Bekleyip sonuç döner)
 app.post("/api/youtube", async (req, res) => {
   try {
     const { url } = req.body;
@@ -59,7 +59,7 @@ app.post("/api/youtube", async (req, res) => {
 
     console.log("YouTube Video ID:", videoId);
 
-    // Progress kontrolü
+    // Cache'de varsa hemen dön
     if (youtubeProgress[videoId]?.ready) {
       return res.json({
         success: true,
@@ -70,53 +70,98 @@ app.post("/api/youtube", async (req, res) => {
       });
     }
 
-    // Hemen dene
-    const options = {
-      method: "GET",
-      url: "https://youtube-mp4-mp3-downloader.p.rapidapi.com/api/v1/download",
-      params: { 
-        id: videoId, 
-        format: "720", 
-        audioQuality: "128"
-      },
-      headers: {
-        "x-rapidapi-key": RAPIDAPI_KEY,
-        "x-rapidapi-host": "youtube-mp4-mp3-downloader.p.rapidapi.com"
-      },
-      timeout: 20000
-    };
-
-    const response = await axios.request(options);
-    const downloadUrl = response.data?.downloadUrl || response.data?.file;
-
-    if (downloadUrl) {
-      youtubeProgress[videoId] = {
-        ready: true,
-        downloadUrl: downloadUrl,
-        title: response.data?.title || "YouTube Video",
-        thumbnail: response.data?.thumbnail || `https://img.youtube.com/vi/${videoId}/maxresdefault.jpg`
+    // API 1: youtube-mp4-mp3-downloader
+    try {
+      console.log("Deneme 1: youtube-mp4-mp3-downloader");
+      const options1 = {
+        method: "GET",
+        url: "https://youtube-mp4-mp3-downloader.p.rapidapi.com/api/v1/download",
+        params: { 
+          id: videoId, 
+          format: "720", 
+          audioQuality: "128"
+        },
+        headers: {
+          "x-rapidapi-key": RAPIDAPI_KEY,
+          "x-rapidapi-host": "youtube-mp4-mp3-downloader.p.rapidapi.com"
+        },
+        timeout: 25000
       };
 
-      return res.json({
-        success: true,
-        downloadUrl: downloadUrl,
-        title: response.data?.title || "YouTube Video",
-        thumbnail: response.data?.thumbnail,
-        videoId: videoId
-      });
+      const response1 = await axios.request(options1);
+      console.log("API 1 Response:", JSON.stringify(response1.data));
+      
+      const downloadUrl = response1.data?.downloadUrl || response1.data?.file;
+      if (downloadUrl) {
+        const result = {
+          ready: true,
+          downloadUrl: downloadUrl,
+          title: response1.data?.title || "YouTube Video",
+          thumbnail: response1.data?.thumbnail || `https://img.youtube.com/vi/${videoId}/maxresdefault.jpg`
+        };
+        
+        youtubeProgress[videoId] = result;
+        
+        return res.json({
+          success: true,
+          downloadUrl: result.downloadUrl,
+          title: result.title,
+          thumbnail: result.thumbnail,
+          videoId: videoId
+        });
+      }
+    } catch (err1) {
+      console.log("API 1 Failed:", err1.message);
     }
 
-    // Başarısız - async başlat
-    if (!youtubeProgress[videoId]) {
-      youtubeProgress[videoId] = { ready: false, attempts: 0 };
-      processYouTubeVideo(videoId);
+    // API 2: Alternatif - youtube-media-downloader
+    try {
+      console.log("Deneme 2: youtube-media-downloader");
+      const options2 = {
+        method: "GET",
+        url: "https://youtube-media-downloader.p.rapidapi.com/v2/video/details",
+        params: { videoId: videoId },
+        headers: {
+          "x-rapidapi-key": RAPIDAPI_KEY,
+          "x-rapidapi-host": "youtube-media-downloader.p.rapidapi.com"
+        },
+        timeout: 20000
+      };
+
+      const response2 = await axios.request(options2);
+      console.log("API 2 Response:", JSON.stringify(response2.data));
+
+      if (response2.data?.videos?.items?.[0]) {
+        const video = response2.data.videos.items[0];
+        const result = {
+          ready: true,
+          downloadUrl: video.url,
+          title: response2.data.title || "YouTube Video",
+          thumbnail: response2.data.thumbnail || `https://img.youtube.com/vi/${videoId}/maxresdefault.jpg`
+        };
+
+        youtubeProgress[videoId] = result;
+
+        return res.json({
+          success: true,
+          downloadUrl: result.downloadUrl,
+          title: result.title,
+          thumbnail: result.thumbnail,
+          videoId: videoId
+        });
+      }
+    } catch (err2) {
+      console.log("API 2 Failed:", err2.message);
     }
 
+    // API 3: Basit link dön (en azından videoyu gösterir)
     return res.json({
-      success: false,
-      message: "Video işleniyor. Lütfen 10 saniye sonra tekrar deneyin.",
+      success: true,
+      downloadUrl: `https://www.youtube.com/watch?v=${videoId}`,
+      title: "YouTube Video",
+      thumbnail: `https://img.youtube.com/vi/${videoId}/maxresdefault.jpg`,
       videoId: videoId,
-      progressUrl: `/api/progress/${videoId}`
+      message: "Direkt indirme linki alınamadı, YouTube sayfası açılacak"
     });
 
   } catch (error) {
@@ -322,44 +367,6 @@ app.get("/api/progress/:videoId", (req, res) => {
     title: progress.title || null
   });
 });
-
-// YouTube async işleme
-async function processYouTubeVideo(videoId) {
-  const options = {
-    method: "GET",
-    url: "https://youtube-mp4-mp3-downloader.p.rapidapi.com/api/v1/download",
-    params: { id: videoId, format: "720", audioQuality: "128" },
-    headers: {
-      "x-rapidapi-key": RAPIDAPI_KEY,
-      "x-rapidapi-host": "youtube-mp4-mp3-downloader.p.rapidapi.com"
-    },
-    timeout: 15000
-  };
-
-  let progress = youtubeProgress[videoId];
-  for (let attempt = 1; attempt <= 5; attempt++) {
-    progress.attempts = attempt;
-    console.log(`YouTube ${videoId} - Attempt ${attempt}`);
-
-    try {
-      const response = await axios.request(options);
-      const downloadUrl = response.data?.downloadUrl || response.data?.file;
-
-      if (downloadUrl) {
-        progress.ready = true;
-        progress.downloadUrl = downloadUrl;
-        progress.title = response.data?.title || "YouTube Video";
-        progress.thumbnail = response.data?.thumbnail;
-        console.log(`YouTube ${videoId} - SUCCESS!`);
-        break;
-      }
-    } catch (err) {
-      console.log(`YouTube ${videoId} - Attempt ${attempt} failed: ${err.message}`);
-    }
-
-    if (attempt < 5) await delay(5000);
-  }
-}
 
 // Error handler
 app.use((err, req, res, next) => {

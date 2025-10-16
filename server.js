@@ -37,32 +37,26 @@ async function fetchRapidAPI(url) {
         duration = media.duration || null;
       }
 
-    // YouTube
-} else if (url.includes("youtube.com") || url.includes("youtu.be")) {
-  // Video ID gerek yok, yeni API direkt link üzerinden çalışıyor
-  const options = {
-    method: "GET",
-    url: `https://youtube-video-fast-downloader-24-7.p.rapidapi.com/download_video/${url.split("v=")[1] || url.split("/").pop()}`,
-    params: { quality: "247" }, // HD seçimi
-    headers: {
-      "x-rapidapi-key": RAPIDAPI_KEY,
-      "x-rapidapi-host": "youtube-video-fast-downloader-24-7.p.rapidapi.com"
-    }
-  };
+    } else if (url.includes("youtube.com") || url.includes("youtu.be")) {
+      const videoId = url.includes("v=") ? url.split("v=")[1].split("&")[0] : url.split("/").pop();
+      const options = {
+        method: "GET",
+        url: `https://youtube-video-fast-downloader-24-7.p.rapidapi.com/download_video/${videoId}`,
+        params: { quality: "247" }, // HD seçimi
+        headers: {
+          "x-rapidapi-key": RAPIDAPI_KEY,
+          "x-rapidapi-host": "youtube-video-fast-downloader-24-7.p.rapidapi.com"
+        }
+      };
 
-  response = await axios.request(options);
-  console.log("YouTube API response:", response.data);
+      response = await axios.request(options);
+      console.log("YouTube API response:", response.data);
 
-  // API yapısına göre download URL ve meta
-  downloadUrl = response.data?.url || null;
-  title = response.data?.title || null;
-  thumbnail = response.data?.thumbnail || null;
-  duration = response.data?.duration || null;
-}
+      downloadUrl = response.data?.url || null;
+      thumbnail = response.data?.thumbnail || null;
+      duration = response.data?.duration || null;
 
-
-    // Facebook
-    }  else if (url.includes("facebook.com") || url.includes("fb.watch")) {
+    } else if (url.includes("facebook.com") || url.includes("fb.watch")) {
       const options = {
         method: "POST",
         url: "https://fdown1.p.rapidapi.com/download",
@@ -76,14 +70,12 @@ async function fetchRapidAPI(url) {
       response = await axios.request(options);
       console.log("Facebook API response:", response.data);
 
-      // HD varsa onu al, yoksa SD
       downloadUrl = response.data?.data?.download?.hd?.url 
                     || response.data?.data?.download?.sd?.url 
                     || null;
       thumbnail = response.data?.data?.video?.thumbnail_url || null;
       duration = response.data?.data?.video?.duration_ms || null;
 
-    // TikTok
     } else if (url.includes("tiktok.com")) {
       const options = {
         method: "GET",
@@ -96,9 +88,13 @@ async function fetchRapidAPI(url) {
       };
       response = await axios.request(options);
       console.log("TikTok API response:", response.data);
+
       downloadUrl = response.data?.video?.download || response.data?.downloadUrl || null;
       thumbnail = response.data?.video?.thumbnail || null;
       duration = response.data?.video?.duration || null;
+
+    } else {
+      throw new Error("Platform desteklenmiyor");
     }
 
     if (!downloadUrl) {

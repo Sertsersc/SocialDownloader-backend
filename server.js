@@ -7,16 +7,36 @@ app.use(express.json());
 const PORT = process.env.PORT || 3000;
 const RAPIDAPI_KEY = "178dd1391dmsh3c94f458f1e4554p143e7ajsna491fd1338ec";
 
+// Geçici memory'de YouTube progress takibi
+const youtubeProgress = {}; // { [videoId]: { ready: bool, attempts: number } }
+
 function delay(ms) {
   return new Promise(resolve => setTimeout(resolve, ms));
 }
 
+// YouTube progress sorgulama
+async function checkYouTubeProgress(videoId) {
+  try {
+    const res = await axios.get(
+      "https://youtube-mp4-mp3-downloader.p.rapidapi.com/api/v1/progress",
+      {
+        params: { id: videoId },
+        headers: {
+          "x-rapidapi-key": RAPIDAPI_KEY,
+          "x-rapidapi-host": "youtube-mp4-mp3-downloader.p.rapidapi.com"
+        }
+      }
+    );
+    youtubeProgress[videoId] = res.data;
+    return res.data;
+  } catch (err) {
+    return { ready: false, error: err.message };
+  }
+}
+
+// Video info ve URL alma
 async function fetchRapidAPI(url) {
-  let response;
-  let downloadUrl = null;
-  let thumbnail = null;
-  let duration = null;
-  let title = null;
+  let response, downloadUrl = null, thumbnail = null, duration = null, title = null;
 
   try {
     // Instagram
@@ -39,32 +59,6 @@ async function fetchRapidAPI(url) {
         title = media.title || null;
       }
 
-    // DOWNLOAD endpoint (YouTube için hazır değilse bekletme yok, progress kullan)
-app.post("/api/download", async (req, res) => {
-  const { url } = req.body;
-  if (!url) return res.status(400).json({ success: false, message: "URL gerekli" });
-
-  // YouTube kontrolü
-  if (url.includes("youtube.com") || url.includes("youtu.be")) {
-    const videoId = url.includes("v=") ? url.split("v=")[1].split("&")[0] : url.split("/").pop();
-    const progress = youtubeProgress[videoId];
-
-    if (!progress || !progress.ready) {
-      // Video hazır değilse 202 Accepted ile progress bilgisi dönebiliriz
-      return res.status(202).json({
-        success: false,
-        message: "YouTube video işleniyor. Progress endpoint’inden kontrol et.",
-        progress: progress?.attempts || 0
-      });
-    }
-  }
-
-  const result = await fetchVideoInfo(url);
-  if (!result.downloadUrl) return res.status(500).json({ success: false, message: result.error || "Download alınamadı" });
-
-  res.json({ success: true, ...result });
-});
-
     // Facebook
     } else if (url.includes("facebook.com") || url.includes("fb.watch")) {
       const options = {
@@ -78,9 +72,7 @@ app.post("/api/download", async (req, res) => {
         data: { url }
       };
       response = await axios.request(options);
-      downloadUrl = response.data?.data?.download?.hd?.url 
-                    || response.data?.data?.download?.sd?.url 
-                    || null;
+      downloadUrl = response.data?.data?.download?.hd?.url || response.data?.data?.download?.sd?.url || null;
       thumbnail = response.data?.data?.video?.thumbnail_url || null;
       duration = response.data?.data?.video?.duration_ms || null;
       title = response.data?.data?.video?.title || null;
@@ -88,19 +80,14 @@ app.post("/api/download", async (req, res) => {
     // TikTok
     } else if (url.includes("tiktok.com")) {
       const fallbackUrl = `https://robotilab.xyz/download-api/tiktok/download?videoUrl=${encodeURIComponent(url)}`;
-      try {
-        response = await axios.get(fallbackUrl);
-        downloadUrl = response.data?.downloadUrl || null;
-        thumbnail = response.data?.cover || null;
-        duration = response.data?.duration || null;
-        title = response.data?.description || null;
-      } catch (err) {
-        console.log("TikTok fallback error:", err.message);
-      }
+      response = await axios.get(fallbackUrl);
+      downloadUrl = response.data?.downloadUrl || null;
+      thumbnail = response.data?.cover || null;
+      duration = response.data?.duration || null;
+      title = response.data?.description || null;
     }
 
     if (!downloadUrl) throw new Error("Download URL alınamadı");
-
     return { downloadUrl, title, thumbnail, duration };
 
   } catch (err) {
@@ -109,14 +96,38 @@ app.post("/api/download", async (req, res) => {
   }
 }
 
+// DOWNLOAD endpoint
 app.post("/api/download", async (req, res) => {
   const { url } = req.body;
   if (!url) return res.status(400).json({ success: false, message: "URL gerekli" });
+
+  // YouTube kontrolü
+  if (url.includes("youtube.com") || url.includes("youtu.be")) {
+    const videoId = url.includes("v=") ? url.split("v=")[1].split("&")[0] : url.split("/").pop();
+    const progress = await checkYouTubeProgress(videoId);
+
+    if (!progress.ready) {
+      return res.status(202).json({
+        success: false,
+        message: "YouTube video işleniyor. Progress endpoint’inden kontrol et.",
+        progress: progress.attempts || 0
+      });
+    }
+  }
 
   const result = await fetchRapidAPI(url);
   if (!result.downloadUrl) return res.status(500).json({ success: false, message: result.error || "Download alınamadı" });
 
   res.json({ success: true, ...result });
+});
+
+// PROGRESS endpoint
+app.get("/api/progress", async (req, res) => {
+  const { id } = req.query;
+  if (!id) return res.status(400).json({ success: false, message: "Video ID gerekli" });
+
+  const progress = await checkYouTubeProgress(id);
+  res.json({ success: true, progress });
 });
 
 app.listen(PORT, () => console.log(`Server running on port ${PORT}`));

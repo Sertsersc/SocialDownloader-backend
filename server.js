@@ -93,22 +93,27 @@ async function fetchRapidAPI(url) {
       thumbnail = response.data?.data?.video?.thumbnail_url || null;
       duration = response.data?.data?.video?.duration_ms || null;
 
-    } else if (url.includes("tiktok.com")) {
-      const options = {
-        method: "GET",
-        url: "https://tiktok-video-downloader-api.p.rapidapi.com/media",
-        params: { videoUrl: url },
-        headers: {
-          "x-rapidapi-key": RAPIDAPI_KEY,
-          "x-rapidapi-host": "tiktok-video-downloader-api.p.rapidapi.com"
-        }
-      };
-      response = await axios.request(options);
-      console.log("TikTok API response:", response.data);
-      downloadUrl = response.data?.video?.download || response.data?.downloadUrl || null;
-      thumbnail = response.data?.video?.thumbnail || null;
-      duration = response.data?.video?.duration || null;
+    }// TikTok
+} else if (url.includes("tiktok.com")) {
+  const options = {
+    method: "GET",
+    url: "https://tiktok-video-downloader-api.p.rapidapi.com/media",
+    params: { videoUrl: url },
+    headers: {
+      "x-rapidapi-key": RAPIDAPI_KEY,
+      "x-rapidapi-host": "tiktok-video-downloader-api.p.rapidapi.com"
     }
+  };
+
+  response = await axios.request(options);
+  console.log("TikTok API response:", response.data);
+
+  // Yeni yapıya göre download URL alıyoruz
+  downloadUrl = response.data?.downloadUrl || response.data?.video?.download || null;
+  thumbnail = response.data?.cover || response.data?.video?.thumbnail || null;
+  duration = response.data?.video?.duration || null;
+}
+
 
     if (!downloadUrl) {
       throw new Error("Download URL alınamadı");

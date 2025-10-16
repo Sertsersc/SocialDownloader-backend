@@ -26,16 +26,24 @@ async function fetchRapidAPI(url) {
       const mediaUrl = response.data?.url?.[0]?.url || null;
       return { downloadUrl: mediaUrl };
 
-    } else if (url.includes("youtube.com") || url.includes("youtu.be")) {
-      const videoId = url.split("v=")[1]?.split("&")[0] ?: url.split("/").last()
-      const options = {
-        method: "GET",
-        url: "https://youtube-media-downloader.p.rapidapi.com/v2/video/details",
-        params: { videoId, urlAccess: "normal", videos: "auto", audios: "auto" },
-        headers: {
-          "x-rapidapi-key": RAPIDAPI_KEY,
-          "x-rapidapi-host": "youtube-media-downloader.p.rapidapi.com"
-        }
+    } // YouTube kısmı
+else if (url.includes("youtube.com") || url.includes("youtu.be")) {
+  const videoId = url.includes("v=") ? url.split("v=")[1].split("&")[0] : url.split("/").pop();
+  
+  const options = {
+    method: "GET",
+    url: "https://youtube-media-downloader.p.rapidapi.com/v2/video/details",
+    params: { videoId, urlAccess: "normal", videos: "auto", audios: "auto" },
+    headers: {
+      "x-rapidapi-key": RAPIDAPI_KEY,
+      "x-rapidapi-host": "youtube-media-downloader.p.rapidapi.com"
+    }
+  };
+  const response = await axios.request(options);
+  const downloadUrl = response.data?.videos?.[0]?.url || null;
+  return { downloadUrl };
+}
+
       };
       const response = await axios.request(options);
       const downloadUrl = response.data?.videos?.[0]?.url || null;
